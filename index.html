@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Flint">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/flint-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="styles.css">
+<title>Flint</title>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-files" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-read" viewBox="0 0 24 24"><path d="M3.5 5.5c2.8-1 5.8-.8 8.5 1 2.7-1.8 5.7-2 8.5-1v13c-2.8-1-5.8-.8-8.5 1-2.7-1.8-5.7-2-8.5-1zM12 6.5v13"/></symbol>
+    <symbol id="i-page" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3.5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6 9.5V19h4.5v-5h3v5H18V9.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5zM14 3.5V8h4"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+    <symbol id="i-task" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10"/><circle cx="5" cy="6.5" r=".6"/><circle cx="5" cy="12" r=".6"/><circle cx="5" cy="17.5" r=".6"/></symbol>
+    <symbol id="i-indent" viewBox="0 0 24 24"><path d="M4 5.5h16M11 10h9M11 14h9M4 18.5h16M4 9.5l3 2.5-3 2.5"/></symbol>
+    <symbol id="i-outdent" viewBox="0 0 24 24"><path d="M4 5.5h16M11 10h9M11 14h9M4 18.5h16M7 9.5L4 12l3 2.5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 13.5L4.5 9 9 4.5M4.5 9H14a5.5 5.5 0 0 1 0 11h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 13.5L19.5 9 15 4.5M19.5 9H10a5.5 5.5 0 0 0 0 11h3"/></symbol>
+  </defs>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 4.5v15M9 4.5v15M13.5 5.2l4.4 14.1M3.5 19.5h17"/></symbol>
+    <symbol id="i-toc" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+    <symbol id="i-marker" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8H6.5v-5zM4 20.5h9"/></symbol>
+
+  </defs>
+</svg>
+
+<div id="app" hidden>
+
+  <!-- Library -->
+  <section id="home" class="view">
+    <header class="topbar">
+      <div class="brand"><img src="icons/flint-mark.svg" alt="" width="28" height="28"><span>Flint</span></div>
+      <button class="sync" aria-label="Sync status"><span class="dot"></span><span class="sync-label"></span></button>
+      <button class="ib" data-go="settings" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+    </header>
+    <main class="home">
+      <h1 id="homeVault" class="home-vault"></h1>
+      <p id="homeSub" class="home-sub"></p>
+      <div id="homeAlerts"></div>
+      <button id="continueCard" class="continue" hidden>
+        <span class="c-label">Continue reading</span>
+        <span class="c-title" id="cTitle"></span>
+        <span class="c-meta" id="cMeta"></span>
+        <span class="c-bar"><span id="cBar"></span></span>
+      </button>
+      <div class="home-actions">
+        <button class="tile" data-go="today"><svg class="ic"><use href="#i-cal"/></svg><span>Today’s note</span></button>
+        <button class="tile" data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New note</span></button>
+      </div>
+      <h2 class="sec">Recent</h2>
+      <ul id="recent" class="rows"></ul>
+    </main>
+    <nav class="bottombar">
+      <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
+      <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
+      <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+      <button data-go="settings"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span></button>
+    </nav>
+  </section>
+
+  <!-- Reader -->
+  <section id="reader" class="rd" hidden>
+    <div class="rd-status"><span id="rdStatusTitle"></span><span id="rdClock"></span></div>
+    <div id="rdFrame" class="rd-frame">
+      <div id="rdCols" class="rd-cols prose">
+        <div id="rdBanner"></div>
+        <h1 id="rdTitle" class="rd-title"></h1>
+        <div id="rdContent"></div>
+        <section id="rdLinks" class="rd-links"></section>
+      </div>
+    </div>
+    <button id="rdFoot" class="rd-foot" aria-label="Change progress display"><span id="rdProg"></span></button>
+    <button id="rdBack" class="rd-back" hidden></button>
+    <div id="hlPop" class="hl-pop" hidden><button id="hlBtn"><svg class="ic"><use href="#i-marker"/></svg><span id="hlLabel">Highlight</span></button></div>
+
+    <div class="rd-top chrome">
+      <div class="rd-top-row">
+        <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+        <div class="modeswitch" role="group" aria-label="Read or edit">
+          <button data-mode="read" aria-pressed="true"><svg class="ic"><use href="#i-read"/></svg>Read</button>
+          <button data-mode="edit" aria-pressed="false"><svg class="ic"><use href="#i-edit"/></svg>Edit</button>
+        </div>
+        <button class="ib" data-go="aa" aria-label="Display settings"><span class="aa">Aa</span></button>
+      </div>
+      <div class="rd-top-title" id="rdChromeTitle"></div>
+    </div>
+    <div class="rd-bottom chrome">
+      <div class="scrub">
+        <input type="range" id="rdScrub" min="0" max="100" value="0" aria-label="Go to position">
+        <span id="rdScrubLabel"></span>
+      </div>
+      <div class="rd-tools">
+        <button data-go="toc"><svg class="ic"><use href="#i-toc"/></svg><span>Contents</span></button>
+        <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
+        <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
+        <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+        <button class="sync tool" aria-label="Sync status"><span class="dot"></span><span class="sync-label">Sync</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Editor -->
+  <section id="editorView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+      <div class="modeswitch" role="group" aria-label="Read or edit">
+        <button data-mode="read" aria-pressed="false"><svg class="ic"><use href="#i-read"/></svg>Read</button>
+        <button data-mode="edit" aria-pressed="true"><svg class="ic"><use href="#i-edit"/></svg>Edit</button>
+      </div>
+      <button class="sync" aria-label="Sync status"><span class="dot"></span><span class="sync-label"></span></button>
+    </header>
+    <main class="edmain">
+      <div id="edBanner"></div>
+      <h1 id="edTitle" class="inline-title"></h1>
+      <textarea id="editor" spellcheck="true" autocapitalize="sentences" aria-label="Note text"></textarea>
+    </main>
+    <nav class="bottombar" id="edNav">
+      <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
+      <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
+      <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+      <button data-go="aa"><span class="aa">Aa</span><span>Text</span></button>
+    </nav>
+    <div id="mdbar" class="mdbar" hidden>
+      <div class="mdbar-scroll">
+        <button data-act="link" aria-label="Link to note"><span class="tx">[[ ]]</span></button>
+        <button data-act="task" aria-label="Checkbox"><svg class="ic"><use href="#i-task"/></svg></button>
+        <button data-act="list" aria-label="Bullet list"><svg class="ic"><use href="#i-list"/></svg></button>
+        <button data-act="heading" aria-label="Heading"><span class="tx">H</span></button>
+        <button data-act="bold" aria-label="Bold"><span class="tx b">B</span></button>
+        <button data-act="italic" aria-label="Italic"><span class="tx i">I</span></button>
+        <button data-act="highlight" aria-label="Highlight"><span class="tx hl">==</span></button>
+        <button data-act="tag" aria-label="Tag"><span class="tx">#</span></button>
+        <button data-act="indent" aria-label="Indent"><svg class="ic"><use href="#i-indent"/></svg></button>
+        <button data-act="outdent" aria-label="Outdent"><svg class="ic"><use href="#i-outdent"/></svg></button>
+        <button data-act="undo" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+        <button data-act="redo" aria-label="Redo"><svg class="ic"><use href="#i-redo"/></svg></button>
+      </div>
+      <button data-act="done" class="mdbar-done" aria-label="Hide keyboard"><svg class="ic"><use href="#i-down"/></svg></button>
+    </div>
+    <ul id="suggest" class="suggest" hidden></ul>
+  </section>
+</div>
+
+<div id="scrim" class="scrim" hidden></div>
+
+<aside id="drawer" class="drawer" hidden aria-label="Files and search">
+  <div class="drawer-head">
+    <div class="seg" role="tablist">
+      <button role="tab" data-tab="files" aria-selected="true">Files</button>
+      <button role="tab" data-tab="search" aria-selected="false">Search</button>
+    </div>
+    <button class="ib" data-close aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+  </div>
+  <div id="tabFiles" class="drawer-body"><div id="tree" class="tree"></div></div>
+  <div id="tabSearch" class="drawer-body" hidden>
+    <input id="q" type="search" placeholder="Search names and text" enterkeyhint="search" autocomplete="off" autocapitalize="off">
+    <ul id="results" class="rows"></ul>
+  </div>
+</aside>
+
+<div id="sheetAa" class="sheet" hidden role="dialog" aria-label="Display settings">
+  <div class="grab"></div>
+  <div class="tabs" role="tablist">
+    <button data-aatab="font" aria-selected="true">Font</button>
+    <button data-aatab="layout" aria-selected="false">Layout</button>
+    <button data-aatab="theme" aria-selected="false">Themes</button>
+  </div>
+  <div class="aa-pane" data-aapane="font">
+    <ul id="fontList" class="fontlist"></ul>
+    <div class="aa-size">
+      <button data-size="-1" aria-label="Smaller text"><span style="font-size:14px">A</span></button>
+      <input id="sizeRange" type="range" min="0" max="11" step="1" aria-label="Text size">
+      <button data-size="1" aria-label="Larger text"><span style="font-size:24px">A</span></button>
+    </div>
+    <div class="aa-row"><span>Boldness</span><div class="seg" data-pref="weight">
+      <button data-v="0" style="font-weight:400">Aa</button><button data-v="1" style="font-weight:500">Aa</button><button data-v="2" style="font-weight:600">Aa</button><button data-v="3" style="font-weight:700">Aa</button></div></div>
+  </div>
+  <div class="aa-pane" data-aapane="layout" hidden>
+    <div class="aa-row"><span>Line spacing</span><div class="seg" data-pref="spacing">
+      <button data-v="tight">Tight</button><button data-v="normal">Normal</button><button data-v="loose">Loose</button></div></div>
+    <div class="aa-row"><span>Margins</span><div class="seg" data-pref="margin">
+      <button data-v="narrow">Narrow</button><button data-v="normal">Normal</button><button data-v="wide">Wide</button></div></div>
+    <div class="aa-row"><span>Alignment</span><div class="seg" data-pref="align">
+      <button data-v="left">Left</button><button data-v="justify">Justified</button></div></div>
+    <div class="aa-row"><span>Reading</span><div class="seg" data-pref="layout">
+      <button data-v="pages">Pages</button><button data-v="scroll">Scroll</button></div></div>
+    <div class="aa-row"><span>Page turn</span><div class="seg" data-pref="anim">
+      <button data-v="slide">Slide</button><button data-v="none">Instant</button></div></div>
+    <div class="aa-row"><span>Progress</span><div class="seg" data-pref="progress">
+      <button data-v="page">Page</button><button data-v="time">Time</button><button data-v="percent">%</button><button data-v="none">Off</button></div></div>
+    <div class="aa-row"><span>Clock</span><div class="seg" data-pref="clock">
+      <button data-v="on">On</button><button data-v="off">Off</button></div></div>
+  </div>
+  <div class="aa-pane" data-aapane="theme" hidden>
+    <div class="themes" data-pref="theme">
+      <button data-v="white" class="th-white"><span>Aa</span>White</button>
+      <button data-v="cream" class="th-cream"><span>Aa</span>Cream</button>
+      <button data-v="green" class="th-green"><span>Aa</span>Green</button>
+      <button data-v="dark" class="th-dark"><span>Aa</span>Dark</button>
+      <button data-v="black" class="th-black"><span>Aa</span>Black</button>
+      <button data-v="auto" class="th-auto"><span>Aa</span>Match phone</button>
+    </div>
+  </div>
+  <p class="aa-note">These settings only change how notes look in Flint. Your files aren’t changed.</p>
+</div>
+
+<div id="sheetToc" class="sheet tall" hidden role="dialog" aria-label="Contents">
+  <div class="grab"></div>
+  <div class="tabs" role="tablist">
+    <button data-toctab="contents" aria-selected="true">Contents</button>
+    <button data-toctab="highlights" aria-selected="false">Highlights</button>
+  </div>
+  <ul id="tocList" class="toc"></ul>
+</div>
+
+<div id="settings" class="screen" hidden>
+  <header class="topbar">
+    <button class="ib" id="setClose" aria-label="Close settings"><svg class="ic"><use href="#i-left"/></svg></button>
+    <div class="tb-title">Settings</div>
+  </header>
+  <div class="screen-body">
+    <section class="group">
+      <h2>Scripture</h2>
+      <label class="field"><span>Link Bible references</span><select id="setScripture"><option value="on">On</option><option value="off">Off</option></select></label>
+      <label class="field"><span>Open references with</span><select id="setLogosMode"><option value="app">Logos app</option><option value="refly">Ref.ly link</option></select></label>
+      <label class="field col"><span>Bible version</span><input id="setBible" placeholder="ESV" autocapitalize="characters" autocomplete="off">
+        <small>Use the abbreviation Logos uses, like ESV, NIV2011, NASB95, CSB or LEB. If Logos opens but not to the verse, switch to Ref.ly link.</small></label>
+    </section>
+    <section class="group">
+      <h2>Reading</h2>
+      <label class="field col"><span>Plugin HTML when reading</span>
+        <select id="setHtml">
+          <option value="text">Hide the tags, keep the text</option>
+          <option value="hide">Hide HTML blocks completely</option>
+          <option value="render">Show it formatted</option>
+        </select></label>
+      <label class="field col"><span>Hide these plugin code blocks</span>
+        <input id="setLangs" autocapitalize="off" autocomplete="off">
+        <small>Code blocks in these languages are left out when reading. Separate with commas.</small></label>
+      <label class="field"><span>Open notes in</span>
+        <select id="setOpen"><option value="read">Read</option><option value="edit">Edit</option></select></label>
+    </section>
+    <section class="group">
+      <h2>New notes</h2>
+      <label class="field col"><span>Folder for today’s note</span><input id="setDaily" placeholder="Vault root" autocapitalize="off"></label>
+      <label class="field"><span>Create new notes in</span>
+        <select id="setNewIn"><option value="current">Same folder as the open note</option><option value="root">Vault root</option></select></label>
+    </section>
+    <section class="group">
+      <h2>Offline copy</h2>
+      <div class="field"><span>Notes on this phone</span><span id="setCount"></span></div>
+      <div class="field"><span>Waiting to sync</span><span id="setPending"></span></div>
+      <div class="field"><span>Last synced</span><span id="setLast"></span></div>
+      <button class="btn" id="setSyncNow">Sync now</button>
+      <button class="btn danger" id="setReset">Remove the offline copy</button>
+      <small>Removes notes from this phone and downloads them again. Your OneDrive files aren’t touched. Only works when nothing is waiting to sync.</small>
+    </section>
+    <section class="group">
+      <h2>OneDrive</h2>
+      <div class="field"><span>Vault folder</span><span id="setVault"></span></div>
+      <button class="btn" id="setChangeVault">Choose a different vault folder</button>
+      <div class="field col"><span>App ID</span><code id="setClient"></code></div>
+      <div class="field col"><span>Redirect URI</span><code id="setRedirect"></code></div>
+      <button class="btn" id="setChangeClient">Change app ID</button>
+      <button class="btn danger" id="setSignOut">Sign out</button>
+    </section>
+  </div>
+</div>
+
+<div id="onboard" class="screen ob" hidden>
+  <div class="ob-body">
+    <img class="ob-mark" src="icons/icon-192.png" alt="" width="72" height="72">
+    <div id="obStep"></div>
+  </div>
+</div>
+
+<div id="modal" class="sheet modal" hidden role="dialog">
+  <form id="modalForm">
+    <label for="modalInput" id="modalLabel"></label>
+    <input id="modalInput" autocomplete="off">
+    <small id="modalHint"></small>
+    <div class="modal-row">
+      <button type="button" class="btn" id="modalCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="modalOk"></button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
