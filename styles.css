@@ -372,3 +372,19 @@ body.editing .edmain { padding-bottom: 50vh; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- tags, folder picker, layout switch ---------- */
+.filter { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); font-size: 16px; margin: 0 0 8px; }
+.tags-main .rows .r-name { display: flex; justify-content: space-between; gap: 12px; }
+.tags-main .count { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 400; }
+.tag-head { font-family: var(--serif-ui); font-weight: 600; font-size: 28px; line-height: 1.15; margin: 14px 0 2px; overflow-wrap: anywhere; }
+.sheet-title { font-size: 17px; margin: 2px 0 12px; }
+.folderpick { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.folderpick button { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px; border-radius: 10px; text-align: left; font-size: 16px; }
+.folderpick button:active, .folderpick button.cur { background: var(--accent-soft); }
+.folderpick .ic { width: 20px; height: 20px; color: var(--accent); }
+.folderpick .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folderpick small { color: var(--muted); font-size: 12.5px; }
+.layout-row { display: flex; justify-content: center; margin-bottom: 10px; }
+.layout-row .seg button { display: flex; align-items: center; gap: 6px; padding: 7px 16px; }
+.layout-row .ic { width: 17px; height: 17px; }

@@ -5,7 +5,7 @@ import * as sy from './sync.js';
 import { V } from './sync.js';
 import { renderMarkdown, esc, FRONTMATTER } from './markdown.js';
 import { linkScripture, logosUrl } from './scripture.js';
-import { planHighlight, planRemove, normalize, occurrences } from './highlight.js';
+import { planHighlight, planRemove, normalize, occurrences, hiddenRanges } from './highlight.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -36,7 +36,7 @@ const DEFAULTS = {
   font: 'literata', size: 5, weight: 0, theme: 'auto', spacing: 'normal', margin: 'normal', align: 'left',
   layout: 'pages', anim: 'slide', progress: 'page', clock: 'on',
   htmlMode: 'text', hideLangs: 'dataview, dataviewjs, tasks, query, button, meta-bind-button, tracker',
-  openIn: 'read', dailyFolder: '', newIn: 'current',
+  openIn: 'read',
   scripture: 'on', logosMode: 'app', bibleVersion: '',
 };
 const P = { ...DEFAULTS, ...store.get('prefs', {}) };
@@ -90,11 +90,16 @@ function ago(ts) {
 
 // ---------- overlays and the back gesture ----------
 let modalResolve = null;
+let folderResolve = null;
 const popWaiters = [];
 const OV = {
   drawer: { show() { $('#drawer').hidden = false; renderTree(); }, hide() { $('#drawer').hidden = true; } },
   aa: { show() { $('#sheetAa').hidden = false; syncAaSheet(); }, hide() { $('#sheetAa').hidden = true; } },
   toc: { show() { $('#sheetToc').hidden = false; }, hide() { $('#sheetToc').hidden = true; } },
+  folders: {
+    show() { $('#sheetFolders').hidden = false; },
+    hide() { $('#sheetFolders').hidden = true; if (folderResolve) { const r = folderResolve; folderResolve = null; r(null); } },
+  },
   settings: { show() { fillSettings(); $('#settings').hidden = false; }, hide() { $('#settings').hidden = true; } },
   modal: {
     show() { $('#modal').hidden = false; },
@@ -103,7 +108,7 @@ const OV = {
 };
 function updateScrim() {
   const top = S.ov[S.ov.length - 1];
-  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal'].includes(top);
+  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal', 'folders'].includes(top);
   $('#scrim').style.zIndex = top === 'drawer' ? 40 : 60;
   document.body.classList.toggle('lock', S.ov.length > 0);
 }
@@ -127,7 +132,8 @@ window.addEventListener('popstate', (e) => {
   }
   const st = e.state || {};
   if (st.v === 'note' && V.notes.has(sy.resolveId(st.id))) openNote(st.id, { history: 'none', mode: st.mode });
-  else showHome('none');
+  else if (st.v === 'tags') showTags(st.tag || null, 'none', st.y || 0);
+  else showHome('none', st.y || 0);
 });
 
 function ask({ label, value = '', ok = 'OK', hint = '', input = true, placeholder = '' }) {
@@ -248,6 +254,7 @@ function hydrate(root, n, depth = 0) {
 function showView(v) {
   S.view = v;
   $('#home').hidden = v !== 'home';
+  $('#tagsView').hidden = v !== 'tags';
   $('#reader').hidden = v !== 'reader';
   $('#editorView').hidden = v !== 'editor';
   document.body.dataset.view = v;
@@ -255,16 +262,98 @@ function showView(v) {
   if (v !== 'reader') hidePop();
 }
 
-function showHome(h = 'push') {
+function leaveNote() {
   closeEditor();
   saveReaderPos();
   S.current = null;
   R.id = null;
+}
+
+function showHome(h = 'push', y = 0) {
+  leaveNote();
   if (h === 'push') history.pushState({ v: 'home' }, '');
   else if (h === 'replace') history.replaceState({ v: 'home' }, '');
   showView('home');
   renderHome();
-  window.scrollTo(0, 0);
+  window.scrollTo(0, y);
+}
+
+// ---------- tags ----------
+const TAG_RE = /(?<![^\s(,;])#([\p{L}\p{N}_\-/]*[\p{L}_\-/][\p{L}\p{N}_\-/]*)/gu;
+const tagCache = new Map();
+function noteTags(n) {
+  const hit = tagCache.get(n.id);
+  if (hit && hit.text === n.local) return hit.tags;
+  const text = n.local;
+  const tags = new Set();
+  const hidden = hiddenRanges(text);
+  const code = [...text.matchAll(/(`+)[^`\n][\s\S]*?\1/g)].map((m) => [m.index, m.index + m[0].length]);
+  const inside = (i) => hidden.some(([a, b]) => i >= a && i < b) || code.some(([a, b]) => i >= a && i < b);
+  for (const m of text.matchAll(TAG_RE)) if (!inside(m.index)) tags.add(m[1].replace(/\/+$/, ''));
+  // Tags in the note's properties (frontmatter): "tags: [a, b]", "tags: a, b" or a "- a" list.
+  const fm = /^---\n([\s\S]*?)\n---/.exec(text);
+  if (fm) {
+    const lines = fm[1].split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^(tags?)\s*:\s*(.*)$/i.exec(lines[i]);
+      if (!m) continue;
+      let vals = [];
+      if (m[2].trim()) vals = m[2].replace(/^\[|\]$/g, '').split(/[,\s]+/);
+      else for (let j = i + 1; j < lines.length && /^\s*-\s*/.test(lines[j]); j++) vals.push(lines[j].replace(/^\s*-\s*/, ''));
+      for (const v of vals) { const t = v.trim().replace(/^["']|["']$/g, '').replace(/^#/, ''); if (t) tags.add(t); }
+    }
+  }
+  tagCache.set(n.id, { text, tags });
+  return tags;
+}
+function allTags() {
+  const map = new Map();
+  for (const n of V.notes.values()) {
+    for (const t of noteTags(n)) {
+      const k = t.normalize('NFC').toLowerCase();
+      if (!map.has(k)) map.set(k, { name: t, notes: new Set() });
+      map.get(k).notes.add(n.id);
+    }
+  }
+  return map;
+}
+
+function showTags(tag = null, h = 'push', y = 0) {
+  leaveNote();
+  const state = { v: 'tags', tag };
+  if (h === 'push') history.pushState(state, '');
+  else if (h === 'replace') history.replaceState(state, '');
+  showView('tags');
+  renderTags(tag);
+  window.scrollTo(0, y);
+}
+
+function renderTags(tag) {
+  const tags = allTags();
+  const list = $('#tagList');
+  const filter = $('#tagFilter');
+  if (!tag) {
+    $('#tagsTitle').textContent = 'Tags';
+    filter.hidden = false;
+    const q = filter.value.trim().replace(/^#/, '').toLowerCase();
+    const rows = [...tags.entries()].filter(([k]) => !q || k.includes(q)).sort((a, b) => byName(a[1].name, b[1].name));
+    $('#tagsSub').textContent = tags.size ? `${tags.size} tag${tags.size === 1 ? '' : 's'} in your vault` : '';
+    list.innerHTML = rows.length
+      ? rows.map(([, t]) => `<li><button data-tag="${esc(t.name)}"><span class="r-name"><span>#${esc(t.name)}</span><span class="count">${t.notes.size}</span></span></button></li>`).join('')
+      : `<li class="empty">${tags.size ? 'No tags match.' : 'No tags found in your notes yet.'}</li>`;
+    return;
+  }
+  // One tag: notes with it, including nested tags like #study/greek under #study.
+  const key = tag.normalize('NFC').toLowerCase();
+  const ids = new Set();
+  for (const [k, t] of tags) if (k === key || k.startsWith(`${key}/`)) t.notes.forEach((id) => ids.add(id));
+  const notes = [...ids].map((id) => V.notes.get(id)).filter(Boolean).sort((a, b) => byName(sy.baseName(a.path), sy.baseName(b.path)));
+  $('#tagsTitle').textContent = `#${tag}`;
+  filter.hidden = true;
+  $('#tagsSub').innerHTML = `<span class="tag-head">#${esc(tag)}</span><br>${notes.length} note${notes.length === 1 ? '' : 's'}`;
+  list.innerHTML = notes.length
+    ? notes.map((n) => `<li><button data-open="${esc(n.id)}" data-backlabel="#${esc(tag)}"><span class="r-name">${esc(sy.baseName(n.path))}</span><span class="r-meta">${esc(sy.dirName(n.path) || 'Vault root')}</span></button></li>`).join('')
+    : '<li class="empty">No notes have this tag any more.</li>';
 }
 
 function renderHome() {
@@ -302,10 +391,12 @@ function renderHome() {
     : `<li class="empty">${count ? 'Notes you open will show up here. Tap Files to browse your vault.' : ''}</li>`;
 }
 
-function openNote(id, { history: h = 'push', mode, target = null, keepOv = false, backTo = null } = {}) {
+function openNote(id, { history: h = 'push', mode, target = null, keepOv = false, backTo = null, backLabel = null } = {}) {
   id = sy.resolveId(id);
   const n = V.notes.get(id);
   if (!n) { toast('That note isn’t on this phone yet. It will appear after the next sync.'); return false; }
+  // Remember where a list was scrolled, so Back returns to the same spot.
+  if (h === 'push' && (S.view === 'home' || S.view === 'tags') && !S.ov.length) history.replaceState({ ...(history.state || {}), y: scrollY }, '');
   closeEditor();
   saveReaderPos();
   if (!keepOv && S.ov.length) { dropAllOv(); if (h === 'push') h = 'replace'; }
@@ -313,7 +404,7 @@ function openNote(id, { history: h = 'push', mode, target = null, keepOv = false
   addRecent(id);
   store.set('last', id);
   const m = mode || P.openIn;
-  const state = { v: 'note', id, mode: m, backTo };
+  const state = { v: 'note', id, mode: m, backTo, backLabel };
   if (h === 'push') history.pushState(state, '');
   else if (h === 'replace') history.replaceState(state, '');
   if (m === 'edit') { showView('editor'); loadEditor(n); } else { showView('reader'); loadReader(n, target); }
@@ -347,6 +438,7 @@ const R = { id: null, page: 0, total: 1, step: 1, words: 0, chrome: false, swipe
 
 function loadReader(n, target = null) {
   R.id = n.id;
+  R.frac = null;
   const name = sy.baseName(n.path);
   const body = n.local.replace(FRONTMATTER, '');
   $('#rdTitle').textContent = name;
@@ -363,8 +455,9 @@ function loadReader(n, target = null) {
   R.words = (content.textContent.match(/\S+/g) || []).length;
   $$('img', content).forEach((img) => img.addEventListener('load', relayoutSoon, { once: true }));
   const back = history.state?.backTo ? V.notes.get(sy.resolveId(history.state.backTo)) : null;
-  $('#rdBack').hidden = !back;
-  if (back) $('#rdBack').textContent = `‹ Back to “${sy.baseName(back.path)}”`;
+  const backText = back ? `“${sy.baseName(back.path)}”` : history.state?.backLabel || '';
+  $('#rdBack').hidden = !backText;
+  if (backText) $('#rdBack').textContent = `‹ Back to ${backText}`;
   hideChrome();
   layout();
   if (target) goToTarget(target);
@@ -387,6 +480,7 @@ function layout() {
     R.total = 1;
     return;
   }
+  fr.scrollTop = 0;
   const W = fr.clientWidth, H = fr.clientHeight;
   const colW = Math.floor(Math.min(W - 2 * MARGINS[P.margin], fsPx() * 34));
   const gap = W - colW;
@@ -433,6 +527,7 @@ function turn(d) {
 
 function updateProgress() {
   const frac = readerFrac();
+  R.frac = frac;
   const pages = P.layout === 'pages';
   const atEnd = pages ? R.page >= R.total - 1 : frac > 0.995;
   const mins = Math.ceil((R.words * (1 - (pages ? (R.page + 1) / R.total : frac))) / 230);
@@ -450,14 +545,30 @@ function updateProgress() {
 
 function relayout() {
   if (!R.id || S.view !== 'reader') return;
-  const frac = readerFrac();
+  const frac = R.frac ?? readerFrac();
   layout();
   setFrac(frac, false);
 }
 let relayoutTimer;
 function relayoutSoon() { clearTimeout(relayoutTimer); relayoutTimer = setTimeout(relayout, 120); }
 
-function showChrome() { R.chrome = true; $('#reader').classList.add('show-chrome'); updateProgress(); hidePop(); }
+function showChrome() {
+  R.chrome = true;
+  $('#reader').classList.add('show-chrome');
+  $$('#layoutSwitch [data-layoutpick]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layoutpick === P.layout)));
+  updateProgress();
+  hidePop();
+}
+function setLayout(v) {
+  if (P.layout === v) return;
+  const frac = R.frac ?? readerFrac();
+  P.layout = v;
+  savePrefs();
+  applyPrefs();
+  layout();
+  setFrac(frac, false);
+  $$('#layoutSwitch [data-layoutpick]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layoutpick === v)));
+}
 function hideChrome() { R.chrome = false; $('#reader').classList.remove('show-chrome'); }
 
 function updateClock() {
@@ -570,7 +681,7 @@ function onReaderTap(e) {
     e.preventDefault();
     if (a.classList.contains('scripture')) openScripture(a);
     else if (a.classList.contains('wikilink')) followLink(a.dataset.target, a.dataset.sub);
-    else if (a.classList.contains('tag')) openSearch(`#${a.dataset.tag}`);
+    else if (a.classList.contains('tag')) { saveReaderPos(); showTags(a.dataset.tag); }
     else if (a.href) window.open(a.href, '_blank', 'noopener');
     return;
   }
@@ -934,20 +1045,42 @@ function placeBar() {
 }
 
 const cleanName = (s) => s.replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+/, '');
+function allFolders() {
+  const set = new Set();
+  for (const f of V.files.values()) if (f.folder && f.path) set.add(f.path);
+  for (const n of V.notes.values()) {
+    const parts = n.path.split('/');
+    for (let i = 1; i < parts.length; i++) set.add(parts.slice(0, i).join('/'));
+  }
+  return [...set].sort((a, b) => byName(a, b));
+}
+function renderFolderPick() {
+  const q = $('#folderFilter').value.trim().toLowerCase();
+  const curDir = cur() ? sy.dirName(cur().path) : null;
+  const rows = [''].concat(allFolders()).filter((p) => !q || p.toLowerCase().includes(q));
+  $('#folderList').innerHTML = rows.map((p) => {
+    const depth = p ? p.split('/').length - 1 : 0;
+    const name = p ? p.split('/').pop() : 'Vault root';
+    const parent = p.includes('/') ? sy.dirName(p) : '';
+    return `<li><button data-folder="${esc(p)}" class="${p === curDir ? 'cur' : ''}" style="padding-left:${8 + (q ? 0 : depth * 18)}px"><svg class="ic"><use href="#i-folder"/></svg><span class="nm">${esc(name)}${q && parent ? `<br><small>${esc(parent)}</small>` : ''}</span>${p === curDir ? '<small>Current</small>' : ''}</button></li>`;
+  }).join('') || '<li class="empty">No folders match.</li>';
+}
+function pickFolder() {
+  return new Promise((resolve) => {
+    folderResolve = resolve;
+    $('#folderFilter').value = '';
+    renderFolderPick();
+    pushOv('folders');
+    requestAnimationFrame(() => $('#folderList .cur')?.scrollIntoView({ block: 'center' }));
+  });
+}
 async function newNote() {
-  const folder = P.newIn === 'current' && cur() ? sy.dirName(cur().path) : '';
-  const name = await ask({ label: 'New note', ok: 'Create', hint: folder ? `It will be saved in ${folder}.` : 'It will be saved in the vault root.' });
+  const folder = await pickFolder();
+  if (folder === null) return;
+  const name = await ask({ label: 'New note', ok: 'Create', hint: `It will be saved in ${folder || 'the vault root'}.` });
   if (name === null) return;
   const id = await sy.createNote(sy.uniquePath(`${folder ? folder + '/' : ''}${cleanName(name) || 'Untitled'}.md`), '');
   openNote(id, { mode: 'edit' });
-}
-async function todayNote() {
-  const d = new Date();
-  const folder = P.dailyFolder.trim().replace(/^\/+|\/+$/g, '');
-  const path = `${folder ? folder + '/' : ''}${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.md`;
-  const existing = [...V.notes.values()].find((n) => n.path.toLowerCase() === path.toLowerCase());
-  if (existing) { openNote(existing.id); return; }
-  openNote(await sy.createNote(path, ''), { mode: 'edit' });
 }
 
 // ---------- files and search ----------
@@ -1053,6 +1186,7 @@ function syncAaSheet() {
   });
 }
 function prefsChanged() {
+  if (S.view === 'reader' && R.frac == null) R.frac = readerFrac();
   savePrefs();
   applyPrefs();
   if (S.view === 'editor') autosize();
@@ -1092,8 +1226,6 @@ function fillSettings() {
   $('#setHtml').value = P.htmlMode;
   $('#setLangs').value = P.hideLangs;
   $('#setOpen').value = P.openIn;
-  $('#setDaily').value = P.dailyFolder;
-  $('#setNewIn').value = P.newIn;
   $('#setCount').textContent = String(V.notes.size);
   const p = sy.pendingCount(), c = sy.conflicts().length;
   $('#setPending').textContent = p ? `${p} note${p === 1 ? '' : 's'}${c ? `, ${c} need${c === 1 ? 's' : ''} a choice` : ''}` : 'Nothing';
@@ -1114,8 +1246,6 @@ function bindSettings() {
   $('#setHtml').onchange = (e) => { P.htmlMode = e.target.value; reread(); };
   $('#setLangs').onchange = (e) => { P.hideLangs = e.target.value; reread(); };
   $('#setOpen').onchange = (e) => { P.openIn = e.target.value; savePrefs(); };
-  $('#setDaily').onchange = (e) => { P.dailyFolder = e.target.value; savePrefs(); };
-  $('#setNewIn').onchange = (e) => { P.newIn = e.target.value; savePrefs(); };
   $('#setClose').onclick = () => popOv();
   $('#setSyncNow').onclick = async () => { await sy.sync(); fillSettings(); toast(statusMessage()); };
   $('#setReset').onclick = async () => {
@@ -1201,6 +1331,7 @@ function onSyncEvent(type, data) {
     if (S.view === 'editor' && S.editorId === n.id) { if (data.external) replaceEditorText(n.local); renderEditorBanner(n); }
     if (S.view === 'reader' && (data.external || n.conflict)) rerenderReader();
   }
+  if (type === 'tree' && S.view === 'tags') renderTags(history.state?.tag || null);
   if (['tree', 'note', 'renamed', 'conflict'].includes(type)) {
     if (!$('#drawer').hidden && !$('#tabFiles').hidden) renderTree();
     renderSync();
@@ -1316,7 +1447,7 @@ function bind() {
     const m = e.target.closest('.modeswitch [data-mode]');
     if (m) { setMode(m.dataset.mode); return; }
     const o = e.target.closest('[data-open]');
-    if (o) { e.preventDefault(); openNote(o.dataset.open, { mode: o.dataset.openmode }); return; }
+    if (o) { e.preventDefault(); openNote(o.dataset.open, { mode: o.dataset.openmode, backLabel: o.dataset.backlabel || null }); return; }
     const go = e.target.closest('[data-go]');
     if (go) {
       const act = go.dataset.go;
@@ -1325,7 +1456,7 @@ function bind() {
       else if (act === 'files') openFiles();
       else if (act === 'search') openSearch('');
       else if (act === 'new') newNote();
-      else if (act === 'today') todayNote();
+      else if (act === 'tags') showTags();
       else if (act === 'aa') pushOv('aa');
       else if (act === 'toc') openToc();
       return;
@@ -1341,6 +1472,22 @@ function bind() {
     const b = e.target.closest('[data-tocel]');
     if (b) { const el = R.tocEls?.[b.dataset.tocel]; await popOv(); showElement(el); }
   });
+  $('#folderList').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-folder]');
+    if (!b) return;
+    const r = folderResolve;
+    folderResolve = null;
+    await popOv();
+    r?.(b.dataset.folder);
+  });
+  $('#folderFilter').addEventListener('input', renderFolderPick);
+  $('#tagList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tag]');
+    if (b) { history.replaceState({ ...(history.state || {}), y: scrollY }, ''); showTags(b.dataset.tag); }
+  });
+  $('#tagFilter').addEventListener('input', () => renderTags(null));
+  $('#tagsBack').onclick = () => history.back();
+  $('#layoutSwitch').addEventListener('click', (e) => { const b = e.target.closest('[data-layoutpick]'); if (b) setLayout(b.dataset.layoutpick); });
   $('#scrim').onclick = () => popOv();
   $('#drawer [data-close]').onclick = () => popOv();
   $$('#drawer [data-tab]').forEach((b) => { b.onclick = () => { setTab(b.dataset.tab); if (b.dataset.tab === 'search') $('#q').focus(); else renderTree(); }; });
@@ -1381,10 +1528,8 @@ async function start() {
   if (!auth.clientId()) return showOnboard('client');
   if (!V.vaultId) return showOnboard(auth.hasTokens() ? 'vault' : 'signin');
   showApp();
-  // Pick up where you left off, like a Kindle: reopen the last note at the same spot.
-  const last = sy.resolveId(store.get('last', ''));
-  if (last && V.notes.has(last)) openNote(last, { mode: 'read' });
-  // Then sync in the background. If it can't, the last downloaded vault stays fully usable.
+  // Always start on the Library; "Continue reading" there reopens the last note at the same spot.
+  // Sync runs in the background. If it can't, the last downloaded vault stays fully usable.
   await sy.sync();
   if (V.status === 'auth' && navigator.onLine && redirect !== 'silent-failed' && !sessionStorage.getItem('flint.silentTried')) {
     sessionStorage.setItem('flint.silentTried', '1');

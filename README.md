@@ -46,7 +46,11 @@ The platform must be **Single-page application**, not "Web", and the address mus
 Notes open in **Read** mode, which works like a Kindle:
 
 * **Turning pages:** tap the right edge or swipe left for the next page, and tap the left edge or swipe right to go back.
-* **The menu:** tap the middle of the page. It has the **Read / Edit** switch, Contents, Files, Search, a page slider, and sync status.
+* **The menu:** tap the middle of the page. It has:
+  * the **Read / Edit** switch
+  * a **Pages / Scroll** switch
+  * Contents, Files and Search
+  * a page slider and sync status
 * **Display settings (Aa):**
   * Ten fonts and twelve text sizes, with boldness.
   * Line spacing, margins, and left or justified alignment.
@@ -55,7 +59,7 @@ Notes open in **Read** mode, which works like a Kindle:
 * **Page-turner remotes:** Bluetooth remotes that send arrow keys, Page Up/Down or Space turn pages. Phone browsers don't let web apps use the volume buttons.
 * **Progress:** tap the bottom line to switch between page number, time left, percentage or nothing.
 * **Contents:** lists the note's headings and your highlights, each with its page.
-* **Where you left off:** Flint reopens the last note at the same page and remembers your place in every note.
+* **Where you left off:** Flint always opens on the Library. **Continue reading** there reopens your last note at the same page, and Flint remembers your place in every note.
 
 None of the display settings touch your files. They're stored on the phone only.
 
@@ -81,6 +85,14 @@ All Obsidian link styles work when reading:
 * Embeds such as `![[Note]]`, `![[Note#Heading]]` and `![[image.png]]`
 
 After following a link, a **Back to …** button returns you to the page you were on.
+
+## Tags
+
+**Tags** on the Library lists every tag in your vault with a count. It includes both `#tags` in the text and tags in a note's properties. A filter box helps with long lists.
+
+Tap a tag to see its notes. Parent tags include nested ones, so `#study` also shows `#study/greek`. Tapping a tag inside a note goes to the same page.
+
+Android's Back goes from a note to the tag's notes, then to the tag list, then to the Library. On iPhone, use the Back to … button and the arrow at the top.
 
 ## Scripture and Logos
 
@@ -116,7 +128,7 @@ Query code blocks such as Dataview are hidden while reading, and you can edit th
 * **Plugins don't run here.** They need the Obsidian app itself.
 * **Rename, move and delete** in Obsidian on your computer.
 * **Sign-in renewal:** Microsoft limits browser sign-ins to about a day. Flint renews it with a quick redirect when you open it, usually without a password. Reading never depends on it.
-* **Today's note** creates `YYYY-MM-DD.md`. Set its folder under **Settings → New notes**.
+* **New notes:** tapping New shows every folder in your vault so you can choose where the note goes, then asks for its name.
 * **Fonts** are bundled under the SIL Open Font License (see `fonts/LICENSES-OFL.txt`).
 
 ## Updating the app

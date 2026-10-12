@@ -1,16 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <title>Flint</title>
-  <g stroke="#1C1A28" stroke-width="3" stroke-linejoin="round">
-    <polygon points="268,46 150,160 262,214" fill="#B4AFE0"/>
-    <polygon points="268,46 356,132 262,214" fill="#9893CF"/>
-    <polygon points="356,132 402,250 262,214" fill="#7B75B8"/>
-    <polygon points="150,160 110,272 262,214" fill="#8C86C4"/>
-    <polygon points="110,272 124,392 250,330 262,214" fill="#5F5995"/>
-    <polygon points="402,250 378,366 250,330 262,214" fill="#4E4982"/>
-    <polygon points="124,392 196,470 250,330" fill="#433E72"/>
-    <polygon points="378,366 300,458 250,330" fill="#3A3566"/>
-    <polygon points="196,470 300,458 250,330" fill="#2C2850"/>
-  </g>
-  <path d="M410 54 L420 92 L458 102 L420 112 L410 150 L400 112 L362 102 L400 92 Z" fill="#FFC857"/>
-  <circle cx="452" cy="160" r="9" fill="#FFC857"/>
+  <defs>
+    <linearGradient id="fa" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C3B8FF"/><stop offset="1" stop-color="#8E7DF5"/></linearGradient>
+    <linearGradient id="fb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7B68EE"/><stop offset="1" stop-color="#5B47DB"/></linearGradient>
+    <linearGradient id="fc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A36C4"/><stop offset="1" stop-color="#2E2190"/></linearGradient>
+    <linearGradient id="fd" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6A55E3"/><stop offset="1" stop-color="#4632BC"/></linearGradient>
+  </defs>
+  <polygon points="236,36 150,178 214,304" fill="url(#fa)"/>
+  <polygon points="236,36 372,196 214,304" fill="url(#fb)"/>
+  <polygon points="150,178 132,348 248,476 214,304" fill="url(#fd)"/>
+  <polygon points="372,196 352,392 248,476 214,304" fill="url(#fc)"/>
 </svg>
