@@ -44,7 +44,7 @@ const DEFAULTS = {
   print: { paper: 'letter', orient: 'portrait', margin: 'normal', font: 'serif', size: 'normal', spacing: 'single', title: true, source: true, highlights: true, images: true },
   exportTo: 'save', citeStyle: 'mla', citeKind: 'bib', citeExcerpt: true,
   nightOn: 'off', nightTheme: 'dark', nightFrom: '20:00', nightTo: '07:00',
-  listenRate: 1, listenVoice: '', dataSync: 'on',
+  listenRate: 1, listenVoice: '', dataSync: 'on', columns: 'auto',
   scripture: 'on', logosMode: 'app', bibleVersion: '',
 };
 const P = { ...DEFAULTS, ...store.get('prefs', {}) };
@@ -126,6 +126,7 @@ const OV = {
   note: { show() { $('#sheetNote').hidden = false; }, hide() { $('#sheetNote').hidden = true; } },
   stats: { show() { $('#sheetStats').hidden = false; }, hide() { $('#sheetStats').hidden = true; } },
   define: { show() { $('#sheetDefine').hidden = false; }, hide() { $('#sheetDefine').hidden = true; } },
+  books: { show() { $('#sheetBooks').hidden = false; }, hide() { $('#sheetBooks').hidden = true; if (S.view === 'notebook') renderNotebook(); } },
   print: { show() { $('#sheetPrint').hidden = false; }, hide() { $('#sheetPrint').hidden = true; } },
   cite: { show() { $('#sheetCite').hidden = false; }, hide() { $('#sheetCite').hidden = true; } },
   folders: {
@@ -140,7 +141,7 @@ const OV = {
 };
 function updateScrim() {
   const top = S.ov[S.ov.length - 1];
-  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal', 'folders', 'folder', 'more', 'print', 'cite', 'note', 'stats', 'define'].includes(top);
+  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal', 'folders', 'folder', 'more', 'print', 'cite', 'note', 'stats', 'define', 'books'].includes(top);
   $('#scrim').style.zIndex = top === 'drawer' ? 40 : 60;
   document.body.classList.toggle('lock', S.ov.length > 0);
 }
@@ -167,7 +168,7 @@ window.addEventListener('popstate', (e) => {
   if (st.v === 'note' && V.notes.has(sy.resolveId(st.id))) openNote(st.id, { history: 'none', mode: st.mode });
   else if (st.v === 'tags') showTags(st.tag || null, 'none', st.y || 0);
   else if (st.v === 'pinned') showPinned('none', st.y || 0);
-  else if (st.v === 'notebook') showNotebook('none', st.y || 0);
+  else if (st.v === 'notebook') showNotebook('none', st.y || 0, { note: st.note, book: st.book });
   else if (st.v === 'queue') showQueue('none', st.y || 0);
   else showHome('none', st.y || 0);
   // Going back from a note opened in a folder popup reopens that popup.
@@ -584,6 +585,7 @@ const R = { id: null, page: 0, total: 1, step: 1, words: 0, chrome: false, swipe
 function loadReader(n, target = null) {
   R.id = n.id;
   R.frac = null;
+  R.anchor = null;
   const name = sy.baseName(n.path);
   const body = n.local.replace(FRONTMATTER, '');
   $('#rdTitle').textContent = name;
@@ -600,8 +602,11 @@ function loadReader(n, target = null) {
   R.words = (content.textContent.match(/\S+/g) || []).length;
   $$('img', content).forEach((img) => img.addEventListener('load', relayoutSoon, { once: true }));
   const back = history.state?.backTo ? V.notes.get(sy.resolveId(history.state.backTo)) : null;
-  const backText = back ? `“${sy.baseName(back.path)}”` : history.state?.backLabel || '';
+  const backText = history.state?.backGone ? '' : back ? `“${sy.baseName(back.path)}”` : history.state?.backLabel || '';
   $('#rdBack').hidden = !backText;
+  $('#rdBack').classList.remove('fading');
+  R.backTurns = 0;
+  R.backScrolled = 0;
   if (backText) $('#rdBack').textContent = `‹ Back to ${backText}`;
   $('[data-pinnote]').setAttribute('aria-pressed', String(isNotePinned(n.id)));
   R.src = findSource(n.local, name);
@@ -624,21 +629,38 @@ function rerenderReader() {
   loadReader(n);
 }
 
+// Pages are laid out as CSS columns inside a clipping box. On wide screens
+// (or when chosen) two columns show side by side, like an open book.
+function useTwoColumns(W, H) {
+  if (P.layout !== 'pages') return false;
+  if (P.columns === 'two') return W >= 560;
+  if (P.columns === 'auto') return W >= 880 && W / H > 1.15;
+  return false;
+}
 function layout() {
-  const fr = $('#rdFrame'), cols = $('#rdCols');
+  const fr = $('#rdFrame'), clip = $('#rdClip'), cols = $('#rdCols');
   document.documentElement.style.setProperty('--pageH', `${fr.clientHeight}px`);
   if (P.layout === 'scroll') {
     cols.removeAttribute('style');
+    clip.removeAttribute('style');
     R.total = 1;
+    R.two = false;
     return;
   }
   fr.scrollTop = 0;
   const W = fr.clientWidth, H = fr.clientHeight;
-  const colW = Math.floor(Math.min(W - 2 * MARGINS[P.margin], fsPx() * 34));
-  const gap = W - colW;
-  Object.assign(cols.style, { width: `${colW}px`, height: `${H}px`, columnWidth: `${colW}px`, columnGap: `${gap}px`, marginLeft: `${gap / 2}px` });
-  R.step = W;
-  R.total = Math.max(1, Math.round((cols.scrollWidth + gap) / W));
+  const m = MARGINS[P.margin];
+  const two = useTwoColumns(W, H);
+  const gap = two ? Math.round(Math.max(48, m * 1.6)) : Math.max(40, m);
+  const maxCol = fsPx() * 34;
+  const cw = Math.floor(two ? Math.min((W - 2 * m - gap) / 2, maxCol) : Math.min(W - 2 * m, maxCol));
+  const box = two ? 2 * cw + gap : cw;
+  Object.assign(clip.style, { position: 'absolute', top: '0', bottom: '0', left: `${Math.floor((W - box) / 2)}px`, width: `${box}px`, overflow: 'hidden' });
+  Object.assign(cols.style, { width: `${box}px`, height: `${H}px`, columnWidth: `${cw}px`, columnGap: `${gap}px` });
+  R.two = two;
+  R.step = box + gap;
+  R.total = Math.max(1, Math.ceil((cols.scrollWidth + gap) / R.step - 0.02));
+  $('#reader').classList.toggle('spread', two);
 }
 
 function readerFrac() {
@@ -669,8 +691,19 @@ function goPage(p, animate = true) {
   updateProgress();
   if (R.id) savePosFor(R.id, readerFrac());
 }
+// The floating Back button steps aside once you're reading: after two page
+// turns or a bit of scrolling. Android's Back gesture still works.
+function dismissBack() {
+  const b = $('#rdBack');
+  if (b.hidden || b.classList.contains('fading')) return;
+  b.classList.add('fading');
+  setTimeout(() => { b.hidden = true; b.classList.remove('fading'); }, 250);
+  if (history.state?.v === 'note') history.replaceState({ ...history.state, backGone: true }, '');
+}
 function turn(d) {
   hidePop();
+  R.anchor = null;
+  if (!$('#rdBack').hidden && ++R.backTurns >= 2) dismissBack();
   if (P.layout !== 'pages') return;
   if ((d > 0 && R.page >= R.total - 1) || (d < 0 && R.page <= 0)) return;
   goPage(R.page + d);
@@ -700,6 +733,7 @@ function updateProgress() {
 
 function relayout() {
   if (!R.id || S.view !== 'reader') return;
+  if (R.anchor?.isConnected && Date.now() < R.anchorUntil) { layout(); showElement(R.anchor, { flash: false }); return; }
   const frac = R.frac ?? readerFrac();
   layout();
   setFrac(frac, false);
@@ -737,11 +771,18 @@ function pageOf(el) {
   const cols = $('#rdCols').getBoundingClientRect();
   return Math.max(0, Math.min(R.total - 1, Math.floor((el.getBoundingClientRect().left - cols.left + 1) / R.step)));
 }
-function showElement(el) {
+// Jump to an element. When anchored, Flint keeps it in view while fonts and
+// images finish loading (they can move it to a different page).
+function showElement(el, { anchor = false, flash = true } = {}) {
   if (!el) return;
   if (P.layout === 'pages') goPage(pageOf(el), false);
-  else { const fr = $('#rdFrame'); fr.scrollTop += el.getBoundingClientRect().top - fr.getBoundingClientRect().top - 12; updateProgress(); }
-  el.classList.remove('target-flash'); void el.offsetWidth; el.classList.add('target-flash');
+  else {
+    const fr = $('#rdFrame');
+    fr.scrollTop += el.getBoundingClientRect().top - fr.getBoundingClientRect().top - fr.clientHeight / 4;
+    updateProgress();
+  }
+  if (anchor) { R.anchor = el; R.anchorUntil = Date.now() + 8000; }
+  if (flash) { el.classList.remove('target-flash'); void el.offsetWidth; el.classList.add('target-flash'); }
 }
 function findTarget(sub) {
   const root = $('#rdContent');
@@ -758,11 +799,11 @@ function goToTarget(sub) {
     if (sub.frac != null) { setFrac(sub.frac, false); return; }
     const info = (R.marks || []).find((x) => x.text.toLowerCase() === sub.hl.toLowerCase() && x.occ === (sub.occ || 0))
       || (R.marks || []).find((x) => x.text.toLowerCase().includes(sub.hl.toLowerCase()));
-    if (info) requestAnimationFrame(() => showElement(info.mark)); else setFrac(0, false);
+    if (info) requestAnimationFrame(() => showElement(info.mark, { anchor: true })); else setFrac(0, false);
     return;
   }
   const el = findTarget(sub);
-  if (el) requestAnimationFrame(() => showElement(el));
+  if (el) requestAnimationFrame(() => showElement(el, { anchor: true }));
   else setFrac(0, false);
 }
 
@@ -877,6 +918,16 @@ function bindReader() {
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) { R.swipedAt = Date.now(); turn(dx < 0 ? 1 : -1); }
   }, { passive: true });
   fr.addEventListener('click', onReaderTap);
+  fr.addEventListener('touchmove', () => { R.anchor = null; R.userScrollAt = Date.now(); }, { passive: true });
+  fr.addEventListener('wheel', () => { R.anchor = null; R.userScrollAt = Date.now(); }, { passive: true });
+  fr.addEventListener('scroll', () => {
+    // Only count scrolling you did yourself, not jumps to a highlight or heading.
+    if (P.layout === 'scroll' && Date.now() - (R.userScrollAt || 0) < 800) {
+      R.backScrolled += Math.abs(fr.scrollTop - (R.lastScrollTop ?? fr.scrollTop));
+      if (R.backScrolled > fr.clientHeight * 0.6) dismissBack();
+    }
+    R.lastScrollTop = fr.scrollTop;
+  }, { passive: true });
   fr.addEventListener('scroll', () => { if (P.layout === 'scroll') { updateProgress(); hidePop(); clearTimeout(R.saveT); R.saveT = setTimeout(saveReaderPos, 300); } }, { passive: true });
   $('#rdBanner').addEventListener('click', (e) => { if (e.target.closest('[data-res]')) setMode('edit'); });
   $('#rdFoot').onclick = () => {
@@ -910,6 +961,7 @@ function bindReader() {
     if (act === 'hl') return addHighlight();
     if (act === 'note') return addHighlight({ thenNote: true });
     if (act === 'remove') return removeHighlight();
+    if (act === 'tobook') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openBookPicker({ noteId: R.id, text: info.text, occ: info.occ }); return; }
     if (act === 'editnote') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openNoteEditor({ noteId: R.id, text: info.text, occ: info.occ }); return; }
     const excerpt = normalize(getSelection().toString()).trim();
     hidePop();
@@ -982,7 +1034,7 @@ function showRemovePop(mark) {
   R.popMark = mark;
   const info = (R.marks || []).find((x) => x.mark === mark);
   const has = info && findAnn(R.id, info.text, info.occ);
-  popButtons([['editnote', 'note2', has ? 'Edit note' : 'Add note'], ['remove', 'x', 'Remove highlight']]);
+  popButtons([['editnote', 'note2', has ? 'Edit note' : 'Add note'], ['tobook', 'book', 'Notebook'], ['remove', 'x', 'Remove']]);
   placePop(mark.getBoundingClientRect());
 }
 
@@ -1537,41 +1589,137 @@ function highlightsOf(n) {
   hlCache.set(n.id, { text: n.local, list });
   return list;
 }
-const NB = { mode: 'all' };
-function showNotebook(h = 'push', y = 0) {
+const NB = { tab: 'all', notesOnly: false };
+function showNotebook(h = 'push', y = 0, sub = {}) {
   leaveNote();
-  S.curState = { v: 'notebook' };
-  if (h === 'push') history.pushState({ v: 'notebook' }, '');
-  else if (h === 'replace') history.replaceState({ v: 'notebook' }, '');
+  const state = { v: 'notebook', note: sub.note || null, book: sub.book || null };
+  S.curState = state;
+  if (h === 'push') history.pushState(state, '');
+  else if (h === 'replace') history.replaceState(state, '');
+  NB.note = state.note;
+  NB.book = state.book;
   showView('notebook');
   renderNotebook();
   window.scrollTo(0, y);
 }
+const books = () => fd.all('books').sort((a, b) => byName(a.name, b.name));
+const bookItems = (bookId) => fd.all('bookItems').filter((r) => r.book === bookId).sort((a, b) => a.added - b.added);
+const sameHl = (r, noteId, text, occ) => r.noteId === noteId && r.hl.toLowerCase() === text.toLowerCase() && (r.occ || 0) === (occ || 0);
+// Find a saved highlight in its note again (it may have moved, or been removed in Obsidian).
+function locateHl(noteId, text, occ) {
+  const n = V.notes.get(sy.resolveId(noteId));
+  if (!n) return null;
+  const hs = highlightsOf(n);
+  return hs.find((h) => h.text.toLowerCase() === text.toLowerCase() && h.occ === (occ || 0)) || hs.find((h) => h.text.toLowerCase() === text.toLowerCase()) || null;
+}
+function nbItem(n, h, a, side, missing = false) {
+  const open = n ? `data-nbopen="${esc(n.id)}" data-hl="${esc(h.text)}" data-occ="${h.occ || 0}"` : 'disabled';
+  return `<div class="nb-row"><button class="nb-item${missing ? ' orphan' : ''}" ${open}><q>${esc(h.text)}</q>${a ? `<span class="nb-note"><svg class="ic"><use href="#i-note2"/></svg><span>${esc(a.text)}</span></span>` : ''}${missing ? '<small>No longer highlighted in the note</small>' : ''}</button>${side || ''}</div>`;
+}
+const addBtn = (noteId, h) => `<button class="nb-side" data-tobook="${esc(noteId)}" data-hl="${esc(h.text)}" data-occ="${h.occ || 0}" aria-label="Add to a notebook"><svg class="ic"><use href="#i-plus"/></svg></button>`;
 function renderNotebook() {
   if (S.view !== 'notebook') return;
   const q = $('#nbFilter').value.trim().toLowerCase();
-  $$('#nbMode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === NB.mode)));
   const anns = fd.all('notes');
-  const used = new Set();
+  const annFor = (n, h) => anns.find((r) => sameHl(r, n.id, h.text, h.occ));
+  const match = (n, h, a) => (!NB.notesOnly || a) && (!q || h.text.toLowerCase().includes(q) || a?.text.toLowerCase().includes(q) || sy.baseName(n.path).toLowerCase().includes(q));
+  const head = $('#nbHead');
+  const tabs = $('#nbTabs');
+  const list = $('#nbList');
+  $('#nbOnlyNotes').setAttribute('aria-pressed', String(NB.notesOnly));
+
+  // One note's highlights, as its own notebook.
+  if (NB.note) {
+    const n = V.notes.get(sy.resolveId(NB.note));
+    tabs.hidden = true;
+    $('#nbTitle').textContent = 'Notebook';
+    if (!n) { head.innerHTML = ''; list.innerHTML = '<p class="empty">That note isn’t on this phone any more.</p>'; return; }
+    const items = highlightsOf(n).map((h) => ({ h, a: annFor(n, h) })).filter(({ h, a }) => match(n, h, a));
+    head.innerHTML = `<h1 class="tag-head">${esc(sy.baseName(n.path))}</h1><p class="home-sub">${highlightsOf(n).length} highlight${highlightsOf(n).length === 1 ? '' : 's'}. <button class="linkbtn" data-open="${esc(n.id)}" data-openmode="read">Open note</button></p>`;
+    list.innerHTML = items.map(({ h, a }) => nbItem(n, h, a, addBtn(n.id, h))).join('') || '<p class="empty">Nothing matches.</p>';
+    return;
+  }
+  // A notebook you made.
+  if (NB.book) {
+    const bk = fd.get('books', NB.book);
+    tabs.hidden = true;
+    $('#nbTitle').textContent = 'Notebook';
+    if (!bk) { head.innerHTML = ''; list.innerHTML = '<p class="empty">This notebook was deleted.</p>'; return; }
+    const items = bookItems(NB.book).filter((r) => !q || r.hl.toLowerCase().includes(q));
+    head.innerHTML = `<h1 class="tag-head">${esc(bk.name)}</h1><p class="home-sub">${bookItems(NB.book).length} highlight${bookItems(NB.book).length === 1 ? '' : 's'}. <button class="linkbtn" data-bookrename="${esc(NB.book)}">Rename</button><button class="linkbtn danger-link spaced" data-bookdelete="${esc(NB.book)}">Delete notebook</button></p>`;
+    list.innerHTML = items.map((r) => {
+      const n = V.notes.get(sy.resolveId(r.noteId));
+      const h = locateHl(r.noteId, r.hl, r.occ);
+      const a = n && anns.find((x) => sameHl(x, n.id, r.hl, r.occ));
+      const from = `<span class="nb-from">${esc(n ? sy.baseName(n.path) : sy.baseName(r.notePath || 'Deleted note'))}</span>`;
+      const side = `<button class="nb-side" data-bookremove="${esc(r.key)}" aria-label="Remove from this notebook"><svg class="ic"><use href="#i-x"/></svg></button>`;
+      return from + nbItem(n, h || { text: r.hl, occ: r.occ }, a, side, !h);
+    }).join('') || `<p class="empty">${q ? 'Nothing matches.' : 'Empty so far. In the Notebook or while reading, tap a highlight’s + and choose this notebook.'}</p>`;
+    return;
+  }
+  // The main Notebook: All, By note, or My notebooks.
+  tabs.hidden = false;
+  head.innerHTML = '';
+  $('#nbTitle').textContent = 'Notebook';
+  $$('#nbTabs [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === NB.tab)));
+  $('#nbOnlyNotes').hidden = NB.tab === 'books';
+  if (NB.tab === 'books') {
+    const bs = books().filter((b) => !q || b.name.toLowerCase().includes(q));
+    list.innerHTML = `<button class="btn" data-booknew>New notebook</button><ul class="rows">${bs.map((b) => `<li><button data-bookopen="${esc(b.key)}"><span class="r-name">${esc(b.name)}</span><span class="r-meta">${bookItems(b.key).length} highlight${bookItems(b.key).length === 1 ? '' : 's'}</span></button></li>`).join('')}</ul>${bs.length ? '' : '<p class="empty">Make notebooks to collect highlights from different notes, like a commonplace book.</p>'}`;
+    return;
+  }
   const groups = [];
   for (const n of V.notes.values()) {
     const hs = highlightsOf(n);
     if (!hs.length) continue;
-    const items = hs.map((h) => {
-      const a = anns.find((r) => r.noteId === n.id && r.hl.toLowerCase() === h.text.toLowerCase() && (r.occ || 0) === h.occ);
-      if (a) used.add(a.key);
-      return { h, a };
-    }).filter(({ h, a }) => (NB.mode === 'all' || a) && (!q || h.text.toLowerCase().includes(q) || a?.text.toLowerCase().includes(q) || sy.baseName(n.path).toLowerCase().includes(q)));
-    if (items.length) groups.push({ n, items });
+    const items = hs.map((h) => ({ h, a: annFor(n, h) })).filter(({ h, a }) => match(n, h, a));
+    if (items.length) groups.push({ n, items, total: hs.length, notes: hs.filter((h) => annFor(n, h)).length });
   }
   groups.sort((a, b) => byName(sy.baseName(a.n.path), sy.baseName(b.n.path)));
-  const orphans = anns.filter((a) => !used.has(a.key) && (!q || a.text.toLowerCase().includes(q) || a.hl.toLowerCase().includes(q)));
-  const item = (n, h, a) => `<button class="nb-item" data-nbopen="${esc(n.id)}" data-hl="${esc(h.text)}" data-occ="${h.occ}"><q>${esc(h.text)}</q>${a ? `<span class="nb-note"><svg class="ic"><use href="#i-note2"/></svg><span>${esc(a.text)}</span></span>` : ''}</button>`;
-  let html = groups.map(({ n, items }) => `<section class="nb-group"><h3><span>${esc(sy.baseName(n.path))}</span><span>${items.length}</span></h3>${items.map(({ h, a }) => item(n, h, a)).join('')}</section>`).join('');
-  if (orphans.length) {
-    html += `<section class="nb-group"><h3><span>Notes whose highlight was removed</span><span>${orphans.length}</span></h3>${orphans.map((a) => `<div class="nb-item orphan"><q>${esc(a.hl)}</q><span class="nb-note"><svg class="ic"><use href="#i-note2"/></svg><span>${esc(a.text)}</span></span><small>${esc(V.notes.get(sy.resolveId(a.noteId)) ? sy.baseName(V.notes.get(sy.resolveId(a.noteId)).path) : sy.baseName(a.notePath || 'Deleted note'))}. <button class="linkbtn" data-annDel="${esc(a.key)}">Delete note</button></small></div>`).join('')}</section>`;
+  if (NB.tab === 'bynote') {
+    list.innerHTML = groups.length ? `<ul class="rows">${groups.map((g) => `<li><button data-nbnote="${esc(g.n.id)}"><span class="r-name">${esc(sy.baseName(g.n.path))}</span><span class="r-meta">${g.total} highlight${g.total === 1 ? '' : 's'}${g.notes ? `, ${g.notes} with notes` : ''}</span></button></li>`).join('')}</ul>` : '<p class="empty">Nothing matches.</p>';
+    return;
   }
-  $('#nbList').innerHTML = html || `<p class="empty">${q ? 'Nothing matches.' : NB.mode === 'notes' ? 'No notes yet. Tap a highlight while reading, then Add note.' : 'No highlights yet. While reading, press and hold on text, then tap Highlight.'}</p>`;
+  const usedKeys = new Set(groups.flatMap((g) => g.items.filter((x) => x.a).map((x) => x.a.key)));
+  const orphans = NB.notesOnly || q ? anns.filter((a) => !usedKeys.has(a.key) && !locateHl(a.noteId, a.hl, a.occ) && (!q || a.text.toLowerCase().includes(q) || a.hl.toLowerCase().includes(q))) : [];
+  let html = groups.map(({ n, items }) => `<section class="nb-group"><h3><button data-nbnote="${esc(n.id)}">${esc(sy.baseName(n.path))} <svg class="ic"><use href="#i-right"/></svg></button><span>${items.length}</span></h3>${items.map(({ h, a }) => nbItem(n, h, a, addBtn(n.id, h))).join('')}</section>`).join('');
+  if (orphans.length) html += `<section class="nb-group"><h3><span>Notes whose highlight was removed</span><span>${orphans.length}</span></h3>${orphans.map((a) => `${nbItem(null, { text: a.hl }, a, `<button class="nb-side" data-annDel="${esc(a.key)}" aria-label="Delete note"><svg class="ic"><use href="#i-x"/></svg></button>`, true)}`).join('')}</section>`;
+  list.innerHTML = html || `<p class="empty">${q ? 'Nothing matches.' : NB.notesOnly ? 'No notes yet. Tap a highlight while reading, then Add note.' : 'No highlights yet. While reading, press and hold on text, then tap Highlight.'}</p>`;
+}
+
+// Choose notebooks for one highlight (tick to add, untick to remove).
+const BP = { ctx: null };
+function openBookPicker(ctx) {
+  BP.ctx = ctx;
+  renderBookPicker();
+  pushOv('books');
+}
+function renderBookPicker() {
+  const { noteId, text, occ } = BP.ctx;
+  $('#bookQuote').textContent = text;
+  const bs = books();
+  $('#bookList').innerHTML = bs.map((b) => {
+    const has = bookItems(b.key).some((r) => sameHl(r, noteId, text, occ));
+    return `<li><button data-booktoggle="${esc(b.key)}" aria-pressed="${has}"><span class="nm">${esc(b.name)}</span><span class="tick">${has ? '✓' : ''}</span></button></li>`;
+  }).join('') || '<li class="empty">No notebooks yet. Make one below.</li>';
+}
+function toggleInBook(bookId) {
+  const { noteId, text, occ } = BP.ctx;
+  const found = bookItems(bookId).find((r) => sameHl(r, noteId, text, occ));
+  if (found) fd.remove('bookItems', found.key);
+  else {
+    const n = V.notes.get(sy.resolveId(noteId));
+    fd.put('bookItems', crypto.randomUUID(), { book: bookId, noteId, notePath: n?.path || '', hl: text, occ: occ || 0, added: Date.now() });
+  }
+  renderBookPicker();
+}
+async function newBook(after) {
+  const name = await ask({ label: 'New notebook', placeholder: 'e.g. Sermon ideas', ok: 'Create' });
+  if (!name || !name.trim()) return null;
+  const id = crypto.randomUUID();
+  fd.put('books', id, { name: name.trim(), created: Date.now() });
+  after?.(id);
+  return id;
 }
 
 // ---------- highlight review on the Library ----------
@@ -2374,7 +2522,8 @@ function bind() {
     commitEditor();
     const act = b.dataset.act2;
     await popOv();
-    if (act === 'bookmark') toggleBookmark();
+    if (act === 'nbnote') showNotebook('push', 0, { note: n.id });
+    else if (act === 'bookmark') toggleBookmark();
     else if (act === 'queue') {
       if (queueState(n.id) === 'toread') { fd.remove('queue', n.id); toast('Removed from Up next.'); }
       else { fd.put('queue', n.id, { status: 'toread', added: Date.now() }); toast('Added to Up next.'); }
@@ -2396,8 +2545,40 @@ function bind() {
     if (cp) { P[cp.closest('[data-cpref]').dataset.cpref] = cp.dataset.v; savePrefs(); renderCite(); }
   });
   document.addEventListener('click', (e) => {
+    const nn = e.target.closest('[data-nbnote]');
+    if (nn) { history.replaceState({ ...(history.state || {}), y: scrollY }, ''); showNotebook('push', 0, { note: nn.dataset.nbnote }); return; }
+    const bo = e.target.closest('[data-bookopen]');
+    if (bo) { history.replaceState({ ...(history.state || {}), y: scrollY }, ''); showNotebook('push', 0, { book: bo.dataset.bookopen }); return; }
+    if (e.target.closest('[data-booknew]')) { newBook((id) => showNotebook('push', 0, { book: id })); return; }
+    const tb = e.target.closest('[data-tobook]');
+    if (tb) { openBookPicker({ noteId: tb.dataset.tobook, text: tb.dataset.hl, occ: Number(tb.dataset.occ || 0) }); return; }
+    const bt = e.target.closest('[data-booktoggle]');
+    if (bt) { toggleInBook(bt.dataset.booktoggle); return; }
+    const br = e.target.closest('[data-bookremove]');
+    if (br) { fd.remove('bookItems', br.dataset.bookremove); renderNotebook(); return; }
+    const bren = e.target.closest('[data-bookrename]');
+    if (bren) {
+      const bk = fd.get('books', bren.dataset.bookrename);
+      ask({ label: 'Rename notebook', value: bk?.name || '', ok: 'Rename' }).then((name) => { if (name && name.trim() && bk) { const { u, ...rest } = bk; fd.put('books', bren.dataset.bookrename, { ...rest, name: name.trim() }); } });
+      return;
+    }
+    const bdel = e.target.closest('[data-bookdelete]');
+    if (bdel) {
+      const id = bdel.dataset.bookdelete;
+      ask({ label: 'Delete this notebook?', input: false, ok: 'Delete', hint: 'The highlights stay in your notes and in the main Notebook.' }).then((ok) => {
+        if (!ok) return;
+        for (const r of bookItems(id)) fd.remove('bookItems', r.key);
+        fd.remove('books', id);
+        history.back();
+      });
+      return;
+    }
     const nb = e.target.closest('[data-nbopen]');
-    if (nb) { openNote(nb.dataset.nbopen, { mode: 'read', target: { hl: nb.dataset.hl, occ: Number(nb.dataset.occ || 0) }, backLabel: S.view === 'notebook' ? 'Notebook' : null }); return; }
+    if (nb) {
+      if (S.view === 'notebook' || S.view === 'home') history.replaceState({ ...(history.state || {}), y: scrollY }, '');
+      openNote(nb.dataset.nbopen, { mode: 'read', target: { hl: nb.dataset.hl, occ: Number(nb.dataset.occ || 0) }, backLabel: S.view === 'notebook' ? 'Notebook' : 'Library' });
+      return;
+    }
     const ad = e.target.closest('[data-annDel], [data-anndel]');
     if (ad) { fd.remove('notes', ad.dataset.anndel || ad.getAttribute('data-annDel')); renderNotebook(); return; }
     const uq = e.target.closest('[data-unqueue]');
@@ -2417,7 +2598,9 @@ function bind() {
     }
   });
   $('#nbFilter').addEventListener('input', () => renderNotebook());
-  $('#nbMode').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { NB.mode = b.dataset.v; renderNotebook(); } });
+  $('#nbTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { NB.tab = b.dataset.v; renderNotebook(); } });
+  $('#nbOnlyNotes').onclick = () => { NB.notesOnly = !NB.notesOnly; renderNotebook(); };
+  $('#bookNew').onclick = () => newBook((id) => toggleInBook(id));
   $('#queueTab').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { QV.tab = b.dataset.v; renderQueue(); } });
   $('#reviewNext').onclick = () => { REV.shift++; renderReview(); };
   $('#noteSave').onclick = saveNoteEditor;

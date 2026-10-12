@@ -138,12 +138,13 @@
   <section id="notebookView" class="view" hidden>
     <header class="topbar">
       <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
-      <div class="tb-title">Notebook</div>
+      <div class="tb-title" id="nbTitle">Notebook</div>
       <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
     </header>
     <main class="home">
-      <input id="nbFilter" class="filter" type="search" placeholder="Search highlights and notes" autocomplete="off">
-      <div class="seg nb-seg" id="nbMode"><button data-v="all" aria-pressed="true">All highlights</button><button data-v="notes" aria-pressed="false">With notes</button></div>
+      <div id="nbHead"></div>
+      <div class="seg nb-seg" id="nbTabs"><button data-v="all" aria-pressed="true">All</button><button data-v="bynote" aria-pressed="false">By note</button><button data-v="books" aria-pressed="false">My notebooks</button></div>
+      <div class="nb-tools"><input id="nbFilter" class="filter" type="search" placeholder="Search" autocomplete="off"><button class="chip" id="nbOnlyNotes" aria-pressed="false">With notes</button></div>
       <div id="nbList"></div>
     </main>
   </section>
@@ -167,11 +168,13 @@
     <div class="rd-status"><span id="rdStatusTitle"></span><span id="rdClock"></span></div>
     <svg class="ribbon" id="rdRibbon" hidden viewBox="0 0 24 24" aria-label="Bookmarked page"><path d="M5 0h14v22l-7-5-7 5z"/></svg>
     <div id="rdFrame" class="rd-frame">
+      <div id="rdClip">
       <div id="rdCols" class="rd-cols prose">
         <div id="rdBanner"></div>
         <h1 id="rdTitle" class="rd-title"></h1>
         <div id="rdContent"></div>
         <section id="rdLinks" class="rd-links"></section>
+      </div>
       </div>
     </div>
     <button id="rdFoot" class="rd-foot" aria-label="Change progress display"><span id="rdProg"></span></button>
@@ -306,6 +309,8 @@
       <button data-v="narrow">Narrow</button><button data-v="normal">Normal</button><button data-v="wide">Wide</button></div></div>
     <div class="aa-row"><span>Alignment</span><div class="seg" data-pref="align">
       <button data-v="left">Left</button><button data-v="justify">Justified</button></div></div>
+    <div class="aa-row"><span>Columns</span><div class="seg" data-pref="columns">
+      <button data-v="auto">Auto</button><button data-v="one">One</button><button data-v="two">Two</button></div></div>
     <div class="aa-row"><span>Reading</span><div class="seg" data-pref="layout">
       <button data-v="pages">Pages</button><button data-v="scroll">Scroll</button></div></div>
     <div class="aa-row"><span>Page turn</span><div class="seg" data-pref="anim">
@@ -443,6 +448,7 @@
   <div class="grab"></div>
   <h2 class="sheet-title" id="moreTitle"></h2>
   <ul class="actions">
+    <li><button data-act2="nbnote"><svg class="ic"><use href="#i-book"/></svg><span>Highlights in this note</span></button></li>
     <li><button data-act2="bookmark"><svg class="ic"><use href="#i-bookmark"/></svg><span id="moreBookmark">Bookmark this page</span></button></li>
     <li><button data-act2="queue"><svg class="ic"><use href="#i-queue"/></svg><span id="moreQueue">Add to Up next</span></button></li>
     <li class="sep"></li>
@@ -488,6 +494,14 @@
   <textarea id="noteText" rows="4" placeholder="Your thoughts…"></textarea>
   <p class="aa-note">Notes are saved in Flint and sync to your other phones. Your Obsidian notes aren’t changed.</p>
   <div class="modal-row"><button class="btn danger" id="noteDelete">Delete</button><button class="btn primary" id="noteSave">Save</button></div>
+</div>
+
+<div id="sheetBooks" class="sheet" hidden role="dialog" aria-label="Add to a notebook">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Add to a notebook</h2>
+  <blockquote class="note-quote" id="bookQuote"></blockquote>
+  <ul class="folderpick books-pick" id="bookList"></ul>
+  <button class="btn" id="bookNew">New notebook</button>
 </div>
 
 <div id="sheetStats" class="sheet" hidden role="dialog" aria-label="Reading stats">

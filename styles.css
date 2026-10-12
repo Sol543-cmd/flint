@@ -529,3 +529,37 @@ button.home-sub { display: block; text-align: left; padding: 0; }
 .toc .bm-row { display: flex; align-items: center; }
 .toc .bm-row > button:first-child { flex: 1; min-width: 0; }
 .toc .bm-row .unpin { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); }
+
+/* ---------- notebook v2 ---------- */
+#nbHead .tag-head { display: block; margin-top: 10px; }
+#nbHead .home-sub { margin-top: 4px; }
+.nb-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.nb-tools .filter { margin: 0; flex: 1; }
+.chip { flex: none; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; color: var(--ink-2); background: var(--raised); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.nb-group h3 button { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-weight: 650; font-size: 14px; }
+.nb-group h3 .ic { width: 15px; height: 15px; }
+.nb-row { display: flex; align-items: flex-start; gap: 4px; }
+.nb-row .nb-item { flex: 1; min-width: 0; }
+.nb-side { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: var(--muted); margin-top: 4px; }
+.nb-side:active { background: var(--accent-soft); }
+.nb-side .ic { width: 19px; height: 19px; }
+.nb-from { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; margin: 12px 0 2px; }
+.nb-item small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.danger-link { color: var(--bad); }
+.books-pick button { justify-content: space-between; }
+.books-pick .tick { color: var(--accent); font-weight: 700; }
+.books-pick button[aria-pressed="true"] { background: var(--accent-soft); }
+#sheetBooks .folderpick { max-height: 40vh; }
+
+/* ---------- reader: two-page spread ---------- */
+#rdClip { height: 100%; }
+.rd.spread .rd-cols p { orphans: 2; widows: 2; }
+@media (min-width: 900px) {
+  .rd-top .modeswitch button { padding: 8px 18px; }
+  .home, .edmain { padding-left: 40px; padding-right: 40px; }
+}
+
+.rd-back { transition: opacity .25s ease; }
+.rd-back.fading { opacity: 0; pointer-events: none; }
+.linkbtn.spaced { margin-left: 14px; }

@@ -56,6 +56,7 @@ Notes open in **Read** mode, which works like a Kindle:
   * Line spacing, margins, and left or justified alignment.
   * Pages or continuous scroll, and slide or instant page turns.
   * White, Cream, Green, Dark and Black themes.
+* **Two columns:** on a computer or a tablet held sideways, pages show as a two-page spread. Set this under **Aa → Layout → Columns**: Auto, One or Two.
 * **Page-turner remotes:** Bluetooth remotes that send arrow keys, Page Up/Down or Space turn pages. Phone browsers don't let web apps use the volume buttons.
 * **Progress:** tap the bottom line to switch between page number, time left, percentage or nothing.
 * **Contents:** lists the note's headings and your highlights, each with its page.
@@ -84,7 +85,7 @@ All Obsidian link styles work when reading:
 * `[[Folder/Note]]` and Markdown links like `[text](Folder/Note%20Name.md)`
 * Embeds such as `![[Note]]`, `![[Note#Heading]]` and `![[image.png]]`
 
-After following a link, a **Back to …** button returns you to the page you were on.
+After following a link, a **Back to …** button returns you to the page you were on. It steps aside after two page turns or a little scrolling; Android's Back gesture always works.
 
 ## Tags
 
@@ -154,6 +155,9 @@ Query code blocks such as Dataview are hidden while reading, and you can edit th
 * **Notebook** (on the Library) lists every highlight in your vault, grouped by note, with search and a **With notes** filter. Tap one to open the note right at that highlight.
 * **Notes on highlights:** tap a highlight while reading and choose **Add note**. Or select text and tap **Note** to highlight and add a note in one step. Highlights with a note get a dotted underline.
 * **From your highlights** on the Library resurfaces one highlight a day. Tap **Another** for a different one.
+* **Notebook views:** **All** shows every highlight. **By note** gives each note its own notebook, which you can also open from **⋯ → Highlights in this note**. **My notebooks** holds notebooks you make yourself.
+* **Your own notebooks:** tap **+** beside any highlight in the Notebook, or tap a highlight while reading and choose **Notebook**, then tick the notebooks it belongs in. A notebook can hold highlights from any number of notes. You can rename and delete them; deleting a notebook never removes highlights from your notes.
+* Tapping a highlight anywhere (the Notebook, your notebooks, or the Library card) opens the note at that exact spot, even if images are still loading.
 
 Notes on highlights are stored in Flint, not in your Markdown files, so your Obsidian notes stay exactly as they are. The highlights themselves are normal Obsidian `==highlights==` in the note.
 
