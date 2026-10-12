@@ -101,7 +101,7 @@ export function planHighlight(src, selected, occurrence, renderedCount) {
     return { error: 'Highlight within one paragraph or list item at a time.' };
   }
   if (src[s - 1] === '=' || src[e] === '=') return { error: 'Flint can’t place a highlight right there.' };
-  return { text: `${src.slice(0, s)}==${seg}==${src.slice(e)}`, norm };
+  return { text: `${src.slice(0, s)}==${seg}==${src.slice(e)}`, norm, start: s };
 }
 
 export function planRemove(src, index, renderedCount) {
@@ -109,4 +109,26 @@ export function planRemove(src, index, renderedCount) {
   if (list.length !== renderedCount || !list[index]) return { error: 'Flint couldn’t find that highlight in the note. You can remove it in edit view.' };
   const [a, b] = list[index];
   return { text: src.slice(0, a) + src.slice(a + 2, b - 2) + src.slice(b) };
+}
+
+// Readable text of a bit of markdown (for the notebook and for matching notes to highlights).
+export function plainOf(md) {
+  return md
+    .replace(/!?\[\[([^\]|]*\|)?([^\]]*)\]\]/g, (m, a, b) => (a ? b : b.split('#')[0].split('/').pop()))
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\*\*|__|~~|`/g, '')
+    .replace(/(^|[^\p{L}\p{N}])[*_]([^*_\n]+)[*_](?=[^\p{L}\p{N}]|$)/gu, '$1$2')
+    .replace(/\\([^\w\s])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Every ==highlight== in a note, in order: { start, end, text } with readable text,
+// plus "occ": how many identical highlights came before it in the same note.
+export function listHighlights(src) {
+  const list = existingHighlights(src, hiddenRanges(src)).map(([a, b]) => ({ start: a, end: b, text: plainOf(src.slice(a + 2, b - 2)) }));
+  const seen = new Map();
+  for (const h of list) { const k = h.text.toLowerCase(); h.occ = seen.get(k) || 0; seen.set(k, h.occ + 1); }
+  return list;
 }

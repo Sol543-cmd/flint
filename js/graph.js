@@ -90,3 +90,32 @@ export function createAt(vaultId, path, bytes) {
     body: bytes,
   });
 }
+
+// Rename a file in place. Fails (409) if the name is taken.
+export function rename(id, name) {
+  return req(`/me/drive/items/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, '@microsoft.graph.conflictBehavior': 'fail' }),
+  });
+}
+
+// Flint's own data file (outside the vault). Returns null if it doesn't exist yet.
+const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
+export async function getJsonByPath(path) {
+  const r = await req(`/me/drive/root:/${encPath(path)}`);
+  if (r.status === 404) return null;
+  if (!r.ok) throw await err(r);
+  const item = await r.json();
+  const { bytes, item: fresh } = await download(item.id);
+  let json = null;
+  try { json = JSON.parse(new TextDecoder().decode(bytes)); } catch { json = null; }
+  return { json, eTag: fresh.eTag || item.eTag };
+}
+export function putJsonByPath(path, text, eTag) {
+  return req(`/me/drive/root:/${encPath(path)}:/content${eTag ? '' : '?@microsoft.graph.conflictBehavior=fail'}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...(eTag ? { 'If-Match': eTag } : {}) },
+    body: new TextEncoder().encode(text),
+  });
+}

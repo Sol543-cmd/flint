@@ -41,6 +41,22 @@
   </defs>
     <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0z"/><circle cx="8" cy="8" r="1.3"/></symbol>
     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3.5h6l-1 5.5 3.5 3.5v1.5h-11v-1.5L10 9z M12 14v6.5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9M7 17.5H4.5v-7a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5v7H17M7 14h10v6.5H7z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M5 17.5c2.5-.5 4-2.3 4-5.5V7.5H4.5V12H9M15 17.5c2.5-.5 4-2.3 4-5.5V7.5h-4.5V12H19"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2zM5 17.5a2 2 0 0 1 2-2h11M9 8.5h5"/></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24"><path d="M4 6.5h11M4 11.5h11M4 16.5h7M17.5 14v6M14.5 17h6"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 3.5h10v17l-5-4-5 4z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M17 6l-7 6 7 6M7 6v12"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M7 6l7 6-7 6M17 6v12"/></symbol>
+    <symbol id="i-listen" viewBox="0 0 24 24"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2M4.5 14.5h2.5v5H6a1.5 1.5 0 0 1-1.5-1.5zM19.5 14.5H17v5h1a1.5 1.5 0 0 0 1.5-1.5z"/></symbol>
+    <symbol id="i-note2" viewBox="0 0 24 24"><path d="M5 4.5h14v11l-4 4H5zM15 19.5v-4h4M8.5 9h7M8.5 12.5h4"/></symbol>
+    <symbol id="i-define" viewBox="0 0 24 24"><path d="M6 19.5V5.5a1 1 0 0 1 1-1h11.5v13H7a1 1 0 0 0-1 1 1 1 0 0 0 1 1h11.5M10 8.5h5"/></symbol>
     <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 4.5v15M9 4.5v15M13.5 5.2l4.4 14.1M3.5 19.5h17"/></symbol>
     <symbol id="i-toc" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
     <symbol id="i-marker" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8H6.5v-5zM4 20.5h9"/></symbol>
@@ -59,7 +75,7 @@
     </header>
     <main class="home">
       <h1 id="homeVault" class="home-vault"></h1>
-      <p id="homeSub" class="home-sub"></p>
+      <button id="homeSub" class="home-sub" data-go="stats"></button>
       <div id="homeAlerts"></div>
       <button id="continueCard" class="continue" hidden>
         <span class="c-label">Continue reading</span>
@@ -68,8 +84,14 @@
         <span class="c-bar"><span id="cBar"></span></span>
       </button>
       <div class="home-actions">
+        <button class="tile" data-go="queue"><svg class="ic"><use href="#i-queue"/></svg><span>Up next</span><em id="queueCount"></em></button>
+        <button class="tile" data-go="notebook"><svg class="ic"><use href="#i-book"/></svg><span>Notebook</span></button>
         <button class="tile" data-go="tags"><svg class="ic"><use href="#i-tag"/></svg><span>Tags</span></button>
-        <button class="tile" data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New note</span></button>
+        <button class="tile" data-go="pinned"><svg class="ic"><use href="#i-pin"/></svg><span>Pinned</span></button>
+      </div>
+      <div id="reviewCard" class="review" hidden>
+        <div class="review-head"><span>From your highlights</span><button class="linkbtn" id="reviewNext">Another</button></div>
+        <button class="review-body" id="reviewBody"></button>
       </div>
       <h2 class="sec">Recent</h2>
       <ul id="recent" class="rows"></ul>
@@ -96,9 +118,54 @@
     </main>
   </section>
 
+  <!-- Pinned -->
+  <section id="pinnedView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
+      <div class="tb-title">Pinned</div>
+      <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+    </header>
+    <main class="home pinned-main">
+      <h2 class="sec">Pinned folders</h2>
+      <ul id="pinFolders" class="rows pinrows"></ul>
+      <h2 class="sec">Pinned notes</h2>
+      <ul id="pinNotes" class="rows pinrows"></ul>
+      <p class="pin-note">Pins are kept in Flint on this phone only. They don’t change anything in Obsidian or your vault.</p>
+    </main>
+  </section>
+
+  <!-- Notebook -->
+  <section id="notebookView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
+      <div class="tb-title">Notebook</div>
+      <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+    </header>
+    <main class="home">
+      <input id="nbFilter" class="filter" type="search" placeholder="Search highlights and notes" autocomplete="off">
+      <div class="seg nb-seg" id="nbMode"><button data-v="all" aria-pressed="true">All highlights</button><button data-v="notes" aria-pressed="false">With notes</button></div>
+      <div id="nbList"></div>
+    </main>
+  </section>
+
+  <!-- Up next -->
+  <section id="queueView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
+      <div class="tb-title">Up next</div>
+      <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+    </header>
+    <main class="home">
+      <div class="seg nb-seg" id="queueTab"><button data-v="toread" aria-pressed="true">To read</button><button data-v="finished" aria-pressed="false">Finished</button></div>
+      <ul id="queueList" class="rows pinrows"></ul>
+      <p class="pin-note" id="queueHint"></p>
+    </main>
+  </section>
+
   <!-- Reader -->
   <section id="reader" class="rd" hidden>
     <div class="rd-status"><span id="rdStatusTitle"></span><span id="rdClock"></span></div>
+    <svg class="ribbon" id="rdRibbon" hidden viewBox="0 0 24 24" aria-label="Bookmarked page"><path d="M5 0h14v22l-7-5-7 5z"/></svg>
     <div id="rdFrame" class="rd-frame">
       <div id="rdCols" class="rd-cols prose">
         <div id="rdBanner"></div>
@@ -109,7 +176,14 @@
     </div>
     <button id="rdFoot" class="rd-foot" aria-label="Change progress display"><span id="rdProg"></span></button>
     <button id="rdBack" class="rd-back" hidden></button>
-    <div id="hlPop" class="hl-pop" hidden><button id="hlBtn"><svg class="ic"><use href="#i-marker"/></svg><span id="hlLabel">Highlight</span></button></div>
+    <div id="hlPop" class="hl-pop" hidden></div>
+    <div id="listenBar" class="listen-bar" hidden>
+      <button class="ib" data-listen="prev" aria-label="Previous sentence"><svg class="ic"><use href="#i-prev"/></svg></button>
+      <button class="ib play" data-listen="toggle" aria-label="Play or pause"><svg class="ic"><use id="listenIcon" href="#i-pause"/></svg></button>
+      <button class="ib" data-listen="next" aria-label="Next sentence"><svg class="ic"><use href="#i-next"/></svg></button>
+      <button class="speed" data-listen="speed" aria-label="Reading speed"><span id="listenSpeed">1×</span></button>
+      <button class="ib" data-listen="stop" aria-label="Stop listening"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
 
     <div class="rd-top chrome">
       <div class="rd-top-row">
@@ -118,7 +192,11 @@
           <button data-mode="read" aria-pressed="true"><svg class="ic"><use href="#i-read"/></svg>Read</button>
           <button data-mode="edit" aria-pressed="false"><svg class="ic"><use href="#i-edit"/></svg>Edit</button>
         </div>
-        <button class="ib" data-go="aa" aria-label="Display settings"><span class="aa">Aa</span></button>
+        <div class="rd-top-right">
+          <button class="ib pinbtn" data-pinnote aria-label="Pin this note" aria-pressed="false"><svg class="ic"><use href="#i-pin"/></svg></button>
+          <button class="ib" data-go="more" aria-label="Print, export and more"><svg class="ic"><use href="#i-more"/></svg></button>
+          <button class="ib" data-go="aa" aria-label="Display settings"><span class="aa">Aa</span></button>
+        </div>
       </div>
       <div class="rd-top-title" id="rdChromeTitle"></div>
     </div>
@@ -137,7 +215,7 @@
         <button data-go="toc"><svg class="ic"><use href="#i-toc"/></svg><span>Contents</span></button>
         <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
         <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
-        <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+        <button data-go="listen"><svg class="ic"><use href="#i-listen"/></svg><span>Listen</span></button>
         <button class="sync tool" aria-label="Sync status"><span class="dot"></span><span class="sync-label">Sync</span></button>
       </div>
     </div>
@@ -151,11 +229,13 @@
         <button data-mode="read" aria-pressed="false"><svg class="ic"><use href="#i-read"/></svg>Read</button>
         <button data-mode="edit" aria-pressed="true"><svg class="ic"><use href="#i-edit"/></svg>Edit</button>
       </div>
+      <button class="ib" data-go="more" aria-label="Print, export and more"><svg class="ic"><use href="#i-more"/></svg></button>
       <button class="sync" aria-label="Sync status"><span class="dot"></span><span class="sync-label"></span></button>
     </header>
     <main class="edmain">
       <div id="edBanner"></div>
-      <h1 id="edTitle" class="inline-title"></h1>
+      <input id="edTitle" class="inline-title title-input" aria-label="Note title" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" spellcheck="false">
+      <p class="title-hint">Tap the title to rename the note.</p>
       <textarea id="editor" spellcheck="true" autocapitalize="sentences" aria-label="Note text"></textarea>
     </main>
     <nav class="bottombar" id="edNav">
@@ -244,7 +324,12 @@
       <button data-v="black" class="th-black"><span>Aa</span>Black</button>
       <button data-v="auto" class="th-auto"><span>Aa</span>Match phone</button>
     </div>
-  </div>
+    <div class="aa-row"><span>Night theme</span><div class="seg" data-pref="nightOn"><button data-v="off">Off</button><button data-v="on">On</button></div></div>
+    <div id="nightRows">
+      <div class="aa-row"><span>Use</span><div class="seg" data-pref="nightTheme"><button data-v="cream">Cream</button><button data-v="dark">Dark</button><button data-v="black">Black</button></div></div>
+      <div class="aa-row"><span>From</span><div class="times"><input type="time" id="nightFrom" aria-label="Night starts"><span>to</span><input type="time" id="nightTo" aria-label="Night ends"></div></div>
+    </div>
+    </div>
   <p class="aa-note">These settings only change how notes look in Flint. Your files aren’t changed.</p>
 </div>
 
@@ -253,6 +338,7 @@
   <div class="tabs" role="tablist">
     <button data-toctab="contents" aria-selected="true">Contents</button>
     <button data-toctab="highlights" aria-selected="false">Highlights</button>
+    <button data-toctab="bookmarks" aria-selected="false">Bookmarks</button>
   </div>
   <ul id="tocList" class="toc"></ul>
 </div>
@@ -263,6 +349,11 @@
     <div class="tb-title">Settings</div>
   </header>
   <div class="screen-body">
+    <section class="group">
+      <h2>Listening</h2>
+      <label class="field col"><span>Voice</span><select id="setVoice"></select></label>
+      <small>Voices come from your phone. More can be added in Android’s text-to-speech settings.</small>
+    </section>
     <section class="group">
       <h2>Scripture</h2>
       <label class="field"><span>Link Bible references</span><select id="setScripture"><option value="on">On</option><option value="off">Off</option></select></label>
@@ -281,17 +372,36 @@
       <label class="field col"><span>Hide these plugin code blocks</span>
         <input id="setLangs" autocapitalize="off" autocomplete="off">
         <small>Code blocks in these languages are left out when reading. Separate with commas.</small></label>
+      <label class="field col"><span>Hidden tags</span>
+        <input id="setHiddenTags" autocapitalize="off" autocomplete="off" placeholder="e.g. todo, draft*">
+        <small>Tags to leave out of the Tags list. End with * to hide every tag that starts that way. Footnote anchors from Word documents (like #_ftn12) are always hidden.</small></label>
+      
       <label class="field"><span>Open notes in</span>
         <select id="setOpen"><option value="read">Read</option><option value="edit">Edit</option></select></label>
     </section>
     <section class="group">
       <h2>Offline copy</h2>
+      <div class="field"><span>Protected from automatic clearing</span><span id="setPersist"></span></div>
       <div class="field"><span>Notes on this phone</span><span id="setCount"></span></div>
       <div class="field"><span>Waiting to sync</span><span id="setPending"></span></div>
       <div class="field"><span>Last synced</span><span id="setLast"></span></div>
       <button class="btn" id="setSyncNow">Sync now</button>
       <button class="btn danger" id="setReset">Remove the offline copy</button>
       <small>Removes notes from this phone and downloads them again. Your OneDrive files aren’t touched. Only works when nothing is waiting to sync.</small>
+    </section>
+    <section class="group">
+      <h2>Sync between phones</h2>
+      <label class="field"><span>Sync Flint’s own data</span><select id="setDataSync"><option value="on">On</option><option value="off">Off</option></select></label>
+      <p class="group-text">Notebook notes, pins, Up next, bookmarks, reading positions and reading stats are kept in one small file in your OneDrive, outside your vault, so every phone with Flint stays in step. Obsidian never sees it. Highlights themselves live in your notes, so they sync with the vault.</p>
+      <div class="field col"><span>File in OneDrive</span><code id="setDataPath"></code></div>
+      <div class="field"><span>Last synced</span><span id="setDataLast"></span></div>
+    </section>
+    <section class="group">
+      <h2>Backup</h2>
+      <p class="group-text">Your notes are safe in OneDrive. This backs up the things only Flint keeps: pins, reading positions and display settings.</p>
+      <button class="btn" id="setExport">Save a backup file</button>
+      <label class="btn" for="setImport">Restore from a backup file</label>
+      <input id="setImport" type="file" accept="application/json,.json" hidden>
     </section>
     <section class="group">
       <h2>OneDrive</h2>
@@ -312,12 +422,88 @@
   </div>
 </div>
 
+<div id="sheetFolder" class="sheet tall" hidden role="dialog" aria-label="Folder">
+  <div class="grab"></div>
+  <div class="fs-head">
+    <button class="ib" id="fsUp" aria-label="Parent folder"><svg class="ic"><use href="#i-left"/></svg></button>
+    <div class="fs-title"><div id="fsName"></div><small id="fsPath"></small></div>
+    <button class="ib pinbtn" id="fsPin" aria-label="Pin this folder" aria-pressed="false"><svg class="ic"><use href="#i-pin"/></svg></button>
+  </div>
+  <ul id="fsList" class="folderpick"></ul>
+</div>
+
 <div id="sheetFolders" class="sheet tall" hidden role="dialog" aria-label="Choose a folder">
   <div class="grab"></div>
   <h2 class="sheet-title">Where should the new note go?</h2>
   <input id="folderFilter" class="filter" type="search" placeholder="Filter folders" autocomplete="off" autocapitalize="off">
   <ul id="folderList" class="folderpick"></ul>
 </div>
+
+<div id="sheetMore" class="sheet" hidden role="dialog" aria-label="Note actions">
+  <div class="grab"></div>
+  <h2 class="sheet-title" id="moreTitle"></h2>
+  <ul class="actions">
+    <li><button data-act2="bookmark"><svg class="ic"><use href="#i-bookmark"/></svg><span id="moreBookmark">Bookmark this page</span></button></li>
+    <li><button data-act2="queue"><svg class="ic"><use href="#i-queue"/></svg><span id="moreQueue">Add to Up next</span></button></li>
+    <li class="sep"></li>
+    <li><button data-act2="print"><svg class="ic"><use href="#i-print"/></svg><span>Print<small>Choose paper, margins and type</small></span></button></li>
+    <li><button data-act2="pdf"><svg class="ic"><use href="#i-download"/></svg><span>Export as PDF<small>Uses the same page settings</small></span></button></li>
+    <li><button data-act2="docx"><svg class="ic"><use href="#i-download"/></svg><span>Export as Word<small>.docx with headings, lists, links and images</small></span></button></li>
+    <li><button data-act2="md"><svg class="ic"><use href="#i-download"/></svg><span>Export as Markdown<small>The note file exactly as it is in your vault</small></span></button></li>
+    <li id="moreCiteRow"><button data-act2="cite"><svg class="ic"><use href="#i-quote"/></svg><span>Copy citation<small id="moreCiteSrc"></small></span></button></li>
+  </ul>
+  <div class="aa-row" id="exportToRow"><span>Exported files</span><div class="seg" data-ppref="exportTo"><button data-v="save">Save to phone</button><button data-v="share">Share</button></div></div>
+</div>
+
+<div id="sheetPrint" class="sheet" hidden role="dialog" aria-label="Page setup">
+  <div class="grab"></div>
+  <h2 class="sheet-title" id="printTitle">Print</h2>
+  <div class="aa-row"><span>Paper</span><div class="seg" data-ppref="paper"><button data-v="letter">Letter</button><button data-v="a4">A4</button><button data-v="legal">Legal</button><button data-v="a5">A5</button></div></div>
+  <div class="aa-row"><span>Orientation</span><div class="seg" data-ppref="orient"><button data-v="portrait">Portrait</button><button data-v="landscape">Landscape</button></div></div>
+  <div class="aa-row"><span>Margins</span><div class="seg" data-ppref="margin"><button data-v="narrow">Narrow</button><button data-v="normal">Normal</button><button data-v="wide">Wide</button></div></div>
+  <div class="aa-row"><span>Typeface</span><div class="seg" data-ppref="font"><button data-v="serif">Serif</button><button data-v="sans">Sans</button><button data-v="reading">Reading font</button></div></div>
+  <div class="aa-row"><span>Text size</span><div class="seg" data-ppref="size"><button data-v="small">Small</button><button data-v="normal">Normal</button><button data-v="large">Large</button></div></div>
+  <div class="aa-row"><span>Line spacing</span><div class="seg" data-ppref="spacing"><button data-v="single">Single</button><button data-v="onehalf">1.5</button><button data-v="double">Double</button></div></div>
+  <div class="aa-row"><span>Include</span><div class="chips">
+    <button data-pflag="title">Title</button><button data-pflag="source">Source</button><button data-pflag="highlights">Highlight color</button><button data-pflag="images">Images</button></div></div>
+  <button class="btn primary" id="printGo">Print</button>
+  <p class="aa-note" id="printHint"></p>
+</div>
+
+<div id="sheetCite" class="sheet tall" hidden role="dialog" aria-label="Copy with citation">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Copy with citation</h2>
+  <div class="cite-src" id="citeSrc"></div>
+  <div class="chips" data-cpref="citeStyle" id="citeStyles"></div>
+  <div class="aa-row"><span>Use as</span><div class="seg" data-cpref="citeKind"><button data-v="bib">Bibliography</button><button data-v="note" id="citeNoteLabel">Footnote</button></div></div>
+  <label class="aa-row" id="citeExcerptRow"><span>Include the excerpt</span><input type="checkbox" id="citeExcerpt"></label>
+  <div class="cite-preview" id="citePreview"></div>
+  <button class="btn primary" id="citeCopy"><svg class="ic"><use href="#i-copy"/></svg> Copy</button>
+</div>
+
+<div id="sheetNote" class="sheet" hidden role="dialog" aria-label="Note on highlight">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Note</h2>
+  <blockquote class="note-quote" id="noteQuote"></blockquote>
+  <textarea id="noteText" rows="4" placeholder="Your thoughts…"></textarea>
+  <p class="aa-note">Notes are saved in Flint and sync to your other phones. Your Obsidian notes aren’t changed.</p>
+  <div class="modal-row"><button class="btn danger" id="noteDelete">Delete</button><button class="btn primary" id="noteSave">Save</button></div>
+</div>
+
+<div id="sheetStats" class="sheet" hidden role="dialog" aria-label="Reading stats">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Your reading</h2>
+  <div class="stat-grid" id="statGrid"></div>
+  <div class="bars" id="statBars"></div>
+</div>
+
+<div id="sheetDefine" class="sheet tall" hidden role="dialog" aria-label="Dictionary">
+  <div class="grab"></div>
+  <div id="defineBody" class="define"></div>
+</div>
+
+<div id="printRoot" aria-hidden="true"></div>
+<style id="printPage"></style>
 
 <div id="modal" class="sheet modal" hidden role="dialog">
   <form id="modalForm">

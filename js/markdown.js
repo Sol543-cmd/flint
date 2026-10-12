@@ -11,6 +11,13 @@ const decodeURISafe = (s) => { try { return decodeURI(s); } catch { return s; } 
 const splitPipe = (s) => { const i = s.indexOf('|'); return i < 0 ? [s, ''] : [s.slice(0, i).replace(/\\$/, ''), s.slice(i + 1)]; };
 const display = (p) => p.split('/').pop().replace(/\.md$/i, '');
 
+// Footnote and bookmark anchors from Word documents (#_ftn12, #_edn2, #_Toc123…) aren't tags.
+export function isRealTag(t) {
+  if (!/\p{L}/u.test(t)) return false;
+  if (/^_/.test(t) && (/^_(ftn|edn|ftnref|ednref|toc|ref|hlk|heading|goback|gjdgxs|msocom|anchor|bookmark|cmnt)/i.test(t) || /\d$/.test(t))) return false;
+  return true;
+}
+
 const decoder = document.createElement('textarea');
 function htmlToText(html) {
   const s = html
@@ -75,7 +82,7 @@ marked.use({
       start(src) { const m = /(^|[\s(])#[^\s#]/.exec(src); return m ? m.index + m[1].length : undefined; },
       tokenizer(src) {
         const m = /^#([\p{L}\p{N}_\-/]*[\p{L}_\-/][\p{L}\p{N}_\-/]*)/u.exec(src);
-        if (m) return { type: 'tag', raw: m[0], tag: m[1] };
+        if (m && isRealTag(m[1])) return { type: 'tag', raw: m[0], tag: m[1] };
       },
       renderer(t) { return `<a class="tag" href="#" data-tag="${esc(t.tag)}">#${esc(t.tag)}</a>`; },
     },

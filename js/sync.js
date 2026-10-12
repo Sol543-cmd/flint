@@ -220,6 +220,8 @@ export async function resetLocal() {
 
 // ---------- sync ----------
 let running = null, again = false, pushTimer = null, lastPull = 0;
+let afterSync = null;
+export const setAfterSync = (fn) => { afterSync = fn; };
 
 export function schedulePush() {
   clearTimeout(pushTimer);
@@ -244,6 +246,8 @@ async function run({ quick = false } = {}) {
     await pushAll();
     await pullContents();
     await prefetchImages();
+    // Flint's own data (notebook notes, pins, queue…) syncs after the notes.
+    try { await afterSync?.(); } catch (e) { console.warn('Flint data sync', e); }
     V.lastSync = Date.now();
     const meta = await db.get('kv', 'vault');
     if (meta) { meta.lastSync = V.lastSync; await db.put('kv', meta, 'vault'); }
@@ -501,4 +505,30 @@ export async function resolveConflict(id, choice) {
   await saveNote(n);
   emit('note', { id: n.id, external: true });
   sync({ quick: true });
+}
+
+// Rename a note (only its file name; the folder stays the same).
+export async function renameNote(id, newPath) {
+  const n = V.notes.get(resolveId(id));
+  if (!n) throw new Error('That note isn’t on this phone.');
+  if (n.pendingCreate) {
+    n.path = newPath;
+    await saveNote(n);
+  } else {
+    const r = await g.rename(n.id, newPath.split('/').pop());
+    if (r.status === 409) throw new Error('Another note in this folder already has that name.');
+    if (!r.ok) throw await g.err(r);
+    const it = await r.json();
+    const wanted = newPath.split('/').pop();
+    if (it.name?.normalize('NFC') !== wanted.normalize('NFC')) throw new Error('OneDrive didn’t accept that name, so nothing was changed.');
+    const path = [dirName(newPath), it.name].filter(Boolean).join('/');
+    const f = V.files.get(n.id);
+    if (f) { Object.assign(f, { name: it.name, path, eTag: it.eTag, cTag: it.cTag || f.cTag }); await db.put('files', f); }
+    n.path = path;
+    n.baseETag = it.eTag; // renaming changes the version tag but not the content
+    await saveNote(n);
+  }
+  reindex();
+  emit('tree');
+  emit('note', { id: n.id, external: false });
 }

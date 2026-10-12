@@ -94,6 +94,24 @@ Tap a tag to see its notes. Parent tags include nested ones, so `#study` also sh
 
 Android's Back goes from a note to the tag's notes, then to the tag list, then to the Library. On iPhone, use the Back to … button and the arrow at the top.
 
+Footnote and bookmark anchors from documents converted from Word (such as `#_ftn17`, `#_edn2` or `#_Toc123`) aren't treated as tags. Neither is anything after a `#` inside a link or web address.
+
+To hide other tags, open the tag and tap **Hide this tag**. You can also edit the list under **Settings → Reading → Hidden tags**, where a name ending in `*` hides every tag that starts that way.
+
+## Folders and pins
+
+Search finds folders as well as notes. Tapping a folder opens a popup with its subfolders and notes. Opening a note from there and pressing Back brings the popup back.
+
+**Pinned** on the Library has two sections, pinned folders and pinned notes.
+* **Pin a folder:** tap the pin in its popup.
+* **Pin a note:** tap the middle of the page, then the pin at the top.
+
+Pins are stored in Flint only (and sync between your phones). They never change your vault or Obsidian.
+
+## Renaming notes
+
+In Edit, tap the title and type a new name. If other notes link to it, Flint updates those links too, just like Obsidian does. It asks you first and says how many links will change. Renaming needs an internet connection.
+
 ## Scripture and Logos
 
 Bible references anywhere in your notes are linked while reading, for example "John 3:16", "1 Cor 13:4–7", "Ps. 23" or "Rom 8:28; 12:1-2". Tapping one opens Logos to that passage. The links exist only on screen. Your notes aren't changed.
@@ -130,6 +148,74 @@ Query code blocks such as Dataview are hidden while reading, and you can edit th
 * **Sign-in renewal:** Microsoft limits browser sign-ins to about a day. Flint renews it with a quick redirect when you open it, usually without a password. Reading never depends on it.
 * **New notes:** tapping New shows every folder in your vault so you can choose where the note goes, then asks for its name.
 * **Fonts** are bundled under the SIL Open Font License (see `fonts/LICENSES-OFL.txt`).
+
+## Notebook, notes and review
+
+* **Notebook** (on the Library) lists every highlight in your vault, grouped by note, with search and a **With notes** filter. Tap one to open the note right at that highlight.
+* **Notes on highlights:** tap a highlight while reading and choose **Add note**. Or select text and tap **Note** to highlight and add a note in one step. Highlights with a note get a dotted underline.
+* **From your highlights** on the Library resurfaces one highlight a day. Tap **Another** for a different one.
+
+Notes on highlights are stored in Flint, not in your Markdown files, so your Obsidian notes stay exactly as they are. The highlights themselves are normal Obsidian `==highlights==` in the note.
+
+## Up next, bookmarks and stats
+
+* **Up next:** add a note from **⋯ → Add to Up next**. The Up next tile shows your queue with progress and minutes left. When you read a queued note to the end, it moves to **Finished**.
+* **Bookmarks:** use **⋯ → Bookmark this page**. A small ribbon marks bookmarked pages, and **Contents → Bookmarks** lists them.
+* **Reading stats:** Flint counts time spent actively reading. The line under your vault name shows today's time and your streak. Tap it for the week at a glance.
+
+## Listen and Define
+
+* **Listen** (in the reader menu) reads the note aloud from the page you're on, highlighting each sentence and turning pages as it goes. Use the small player to pause, skip back or forward a sentence, or change speed. It keeps the screen on while listening, so Android doesn't stop it. Choose a voice under **Settings → Listening**; voices come from your phone.
+* **Define:** press and hold a single word, then tap **Define**. This needs an internet connection and covers English words.
+
+## Night theme
+
+**Aa → Themes → Night theme** switches to Cream, Dark or Black between the times you choose, and back again in the morning.
+
+## Sync between phones
+
+Flint keeps its own data in one small file in your OneDrive, at `Apps/Flint/flint-data.json`, outside your vault. That covers notebook notes, pins, Up next, bookmarks, reading positions and reading stats. Every phone with Flint signed in to the same OneDrive stays in step, and Obsidian never sees the file.
+
+Changes made on different phones merge item by item, so nothing is lost if you use two phones offline. Turn this off under **Settings → Sync between phones** if you'd rather keep each phone separate.
+
+## Print and export
+
+Tap the middle of a page, then **⋯** at the top. In Edit, **⋯** is in the top bar. The menu has:
+
+* **Print.** Choose paper (Letter, A4, Legal, A5), orientation, margins, typeface, text size and line spacing. You can also include or leave out the title, the source line, highlight color and images. Your phone's print screen opens next.
+* **Export as PDF.** This uses the same page settings. On the next screen, choose **Save as PDF** as the printer, which gives a real text PDF rather than a picture.
+* **Export as Word.** Makes a .docx with headings, lists, tables, links, highlights and images, using the same paper and margins.
+* **Export as Markdown.** Saves the note file exactly as it is in your vault.
+
+Exported files go to your Downloads folder. Switch **Exported files** to **Share** to send them straight to another app instead. Print settings are remembered for next time.
+
+## Copy with citation
+
+Select text in a note and tap **Cite**. Flint finds where a clipped note came from using its properties: `source`/`url`, `title`, `author`, `published`, and the clip date. This works with the Obsidian Web Clipper and most other clippers.
+
+* **Styles:** MLA, APA, Chicago, Turabian, Harvard or IEEE.
+* **Use as:** **Bibliography** for a works-cited, reference or bibliography entry, or **Footnote / In-text** for a footnote (Chicago and Turabian) or an in-text citation (the others).
+* **What's copied:** the excerpt in quotation marks with its citation, formatted with italics where the style needs them. You can turn the excerpt off to copy just the citation.
+
+**Copy citation** in the ⋯ menu copies a citation for the whole note.
+
+For personal notes with no web source, the button simply says **Copy** and copies the text.
+
+Check citations before submitting. Flint can only use the details the clipper saved; a missing author or date is left out, as each style's rules allow.
+
+## Built to last
+
+Flint is designed to keep working for years without maintenance:
+
+* **No outside dependencies at run time.** Every library and font is bundled with the app. It doesn't depend on any other website or service staying online besides your own GitHub Pages and Microsoft OneDrive.
+* **It never changes by itself.** Flint only updates when you upload new files to GitHub. Phone updates, browser updates and Obsidian updates can't swap out its code.
+* **Standard, stable building blocks.** It uses ordinary web features that browsers keep supporting, plus Microsoft's stable OneDrive API (v1.0).
+* **Your notes stay plain Markdown files in OneDrive**, the same files Obsidian reads. Flint adds no files to your vault; its own data lives in `Apps/Flint`.
+* **No expiring keys.** The Microsoft app registration has no secret, so there's nothing that expires and has to be renewed.
+* **Backup of Flint-only data.** Settings → Backup saves your pins, reading positions and display settings to a file you can restore later or on another phone.
+* **Offline copy protection.** Settings → Offline copy shows whether Android has marked Flint's storage as protected from automatic clearing. Installing Flint to the home screen usually turns this on.
+
+The realistic long-term risks are on Microsoft's side, such as changes to sign-in rules or the OneDrive API. If that ever happens, the notes themselves are untouched in OneDrive and Obsidian keeps working.
 
 ## Updating the app
 

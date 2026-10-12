@@ -1,6 +1,6 @@
 // Offline support: keeps the app itself available without a connection.
 // Notes live in IndexedDB (see js/db.js); this only caches the app files.
-const VERSION = 'flint-3';
+const VERSION = 'flint-6';
 const SHELL = [
   './',
   'index.html',
@@ -16,6 +16,11 @@ const SHELL = [
   'js/sync.js',
   'js/scripture.js',
   'js/highlight.js',
+  'js/cite.js',
+  'js/flintdata.js',
+  'js/listen.js',
+  'js/docxexport.js',
+  'vendor/docx.min.js',
   'vendor/marked.min.js',
   'vendor/purify.min.js',
   'icons/flint-mark.svg',
