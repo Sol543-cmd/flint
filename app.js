@@ -984,7 +984,7 @@ function bindReader() {
   const lifted = () => {
     R.touching = false;
     R.liftAt = Date.now();
-    if (P.autoHighlight === 'on' && !getSelection().isCollapsed) { clearTimeout(R.autoT); R.autoT = setTimeout(autoHighlight, 300); }
+
   };
   // Android cancels the page's touch when it takes over for text selection, even though the
   // finger is still down; that is not a lift. Only a real touchend counts.
@@ -1034,7 +1034,7 @@ function bindReader() {
     if (!dir) return;
     if (P.layout === 'pages') { e.preventDefault(); turn(e.shiftKey && e.key === ' ' ? -1 : dir); }
   });
-  document.addEventListener('selectionchange', () => { clearTimeout(R.selT); R.selT = setTimeout(onSelection, 180); });
+  document.addEventListener('selectionchange', () => { clearTimeout(R.selT); R.selT = setTimeout(onSelection, 60); });
   $('#hlPop').addEventListener('pointerdown', (e) => e.preventDefault());
   $('#hlPop').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-pop]');
@@ -1052,7 +1052,7 @@ function bindReader() {
       try { await navigator.clipboard.writeText(h.excerpt); toast('Copied.'); } catch { toast('Copying isn’t allowed here.'); }
       return;
     }
-    if (act === 'hl') return addHighlight();
+    if (act === 'hl') { if (addHighlight({ quiet: true })) showAfterPop(); return; }
     if (act === 'note') return addHighlight({ thenNote: true });
     if (act === 'remove') return removeHighlight();
     if (act === 'tobook') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openBookPicker({ noteId: R.id, text: info.text, occ: info.occ }); return; }
@@ -1099,19 +1099,13 @@ function autoHighlight() {
 }
 function hidePop() { $('#hlPop').hidden = true; R.popMode = null; R.popMark = null; }
 function popButtons(list) {
-  $('#hlPop').classList.toggle('compact', list.length > 3);
-  $('#hlPop').innerHTML = list.map(([act, icon, label]) => `<button data-pop="${act}">${list.length > 3 ? '' : `<svg class="ic"><use href="#i-${icon}"/></svg>`}${esc(label)}</button>`).join('');
+  $('#hlPop').innerHTML = list.map(([act, icon, label, kind]) => `<button data-pop="${act}" class="${kind || ''}"><svg class="ic"><use href="#i-${icon}"/></svg><span>${esc(label)}</span></button>`).join('');
 }
-function placePop(rect) {
-  const pop = $('#hlPop');
-  pop.hidden = false;
-  const w = pop.offsetWidth || 260, h = pop.offsetHeight || 44;
-  // Below the text, where Android's own menu (which sits above) can't cover it.
-  let top = rect.bottom + 16;
-  if (top + h > innerHeight - 64) top = innerHeight - h - 64;
-  if (top < rect.bottom && rect.top - h - 70 > 50) top = rect.top - h - 70;
-  pop.style.top = `${Math.max(56, top)}px`;
-  pop.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, rect.left + rect.width / 2 - w / 2))}px`;
+// The bar sits at the bottom of the screen, clear of the selection handles and Android's own menu.
+function placePop() {
+  $('#hlPop').hidden = false;
+  clearTimeout(R.popHideT);
+  if (R.popMode === 'after') R.popHideT = setTimeout(() => { if (R.popMode === 'after') hidePop(); }, 6000);
 }
 function onSelection() {
   if (S.view !== 'reader' || S.ov.length) return;
@@ -1124,18 +1118,9 @@ function onSelection() {
   R.lastAct = Date.now();
   const word = normalize(sel.toString()).trim();
   const single = /^[\p{L}][\p{L}'’-]{0,39}$/u.test(word);
-  // Highlight as soon as you finish selecting (single words get the menu, for Define).
-  if (P.autoHighlight === 'on' && !single) {
-    hidePop();
-    clearTimeout(R.autoT);
-    // While Android's own selection handles are moving, wait for a real pause.
-    const justLifted = Date.now() - (R.liftAt || 0) < 600;
-    R.autoT = setTimeout(autoHighlight, justLifted ? 300 : R.touching && !R.handedOff ? 60_000 : 1600);
-    return;
-  }
   R.popMode = 'add';
   popButtons([
-    ['hl', 'marker', 'Highlight'],
+    ['hl', 'marker', 'Highlight', 'primary'],
     ['note', 'note2', 'Note'],
     R.src ? ['cite', 'quote', 'Cite'] : ['copy', 'copy', 'Copy'],
     ...(single ? [['define', 'define', 'Define']] : []),
@@ -3053,7 +3038,6 @@ function fillSettings() {
   $('#setDataSync').value = P.dataSync;
   $('#setFn').value = P.fnMode;
   $('#setFull').value = P.fullscreen;
-  $('#setAutoHl').value = P.autoHighlight;
   $('#setBibleText').innerHTML = TRANSLATIONS.map(([c, short, long]) => `<option value="${c}">${long}</option>`).join('');
   $('#setBibleText').value = P.bible;
   $('#setEsv').value = esvKey();
@@ -3090,7 +3074,6 @@ function bindSettings() {
   };
   $('#setFn').onchange = (e) => { P.fnMode = e.target.value; reread(); };
   $('#setFull').onchange = (e) => { P.fullscreen = e.target.value; savePrefs(); };
-  $('#setAutoHl').onchange = (e) => { P.autoHighlight = e.target.value; savePrefs(); };
   $('#setBibleText').onchange = (e) => { P.bible = e.target.value; savePrefs(); if (P.bible !== 'esv') loadTranslation(P.bible).catch(() => {}); };
   $('#setEsv').onchange = (e) => { const v = e.target.value.replace(/^\s*(Authorization:\s*)?Token\s+/i, '').trim(); e.target.value = v; if (v) fd.put('shared', 'esvKey', { v }); else fd.remove('shared', 'esvKey'); toast(v ? 'ESV key saved. It syncs to your other devices.' : 'ESV key removed.'); };
   $('#setVoice').onchange = (e) => { P.listenVoice = e.target.value; savePrefs(); L.setVoice(pickVoice()); };

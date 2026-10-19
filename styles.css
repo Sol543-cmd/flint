@@ -651,3 +651,10 @@ button.home-sub { display: block; text-align: left; padding: 0; }
 .rd.is-book #rdContent aside[data-epub-type*="footnote"], .rd.is-book #rdContent aside[data-epub-type*="endnote"] { display: none; }
 .rd.is-book #rdContent img { display: block; margin: 0 auto 1em; }
 .rd.is-book #rdContent a[data-epub-href] { color: var(--accent); text-decoration: none; }
+
+/* Kindle-style highlight bar: fixed at the bottom, clear of the selection handles */
+.hl-pop { left: 50% !important; top: auto !important; bottom: calc(var(--sb) + 10px); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 16px); border-radius: 16px; padding: 4px; gap: 4px; background: var(--ink); }
+.hl-pop button { flex-direction: column; gap: 3px; padding: 8px 12px; border-radius: 12px; font-size: 12.5px; min-width: 62px; justify-content: center; }
+.hl-pop button + button { border-left: 0; }
+.hl-pop button.primary { background: var(--mark); color: #2a2200; font-weight: 700; padding: 8px 18px; }
+.hl-pop .ic { width: 20px; height: 20px; }
