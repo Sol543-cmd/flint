@@ -118,7 +118,12 @@ export function findReferences(text) {
     if (book.oneChapter && !v) { v = ch; ch = 1; }
     if (book.needsVerse && !m[3]) continue;
     if (ch < 1 || ch > book.chapters || (v !== null && (v < 1 || v > 176))) continue;
-    out.push({ start: m.index, end: m.index + m[0].length, abbr: book.abbr, ch, v });
+    // Ranges: "3:16-18" (verses), "1:1-2:3" (chapter and verse), "1-3" (chapters).
+    let ch2 = ch, v2 = v;
+    if (m[3] && m[4]) { if (m[5]) { ch2 = Number(m[4]); v2 = Number(m[5]); } else v2 = Number(m[4]); }
+    else if (m[6]) { ch2 = Number(m[6]); v2 = null; }
+    if (ch2 < ch || ch2 > book.chapters) { ch2 = ch; v2 = v; }
+    out.push({ start: m.index, end: m.index + m[0].length, abbr: book.abbr, ch, v, ch2, v2 });
     // Follow-on references that reuse the book: "Rom 8:28; 12:1-2" or "John 3:16, 18".
     let pos = m.index + m[0].length;
     let lastCh = ch, hadVerse = v !== null;
@@ -132,7 +137,7 @@ export function findReferences(text) {
       else break;
       if (c < 1 || c > book.chapters || (vv !== null && vv > 176)) break;
       const s = pos + r[1].length;
-      out.push({ start: s, end: pos + r[0].length, abbr: book.abbr, ch: c, v: vv });
+      out.push({ start: s, end: pos + r[0].length, abbr: book.abbr, ch: c, v: vv, ch2: c, v2: r[4] ? Number(r[4]) : vv });
       pos += r[0].length;
       lastCh = c; hadVerse = vv !== null;
     }
@@ -167,6 +172,7 @@ export function linkScripture(root, opts) {
       a.className = 'scripture';
       a.href = logosUrl(r, opts);
       a.dataset.ref = `${r.abbr} ${r.ch}${r.v ? `:${r.v}` : ''}`;
+      a.dataset.end = `${r.ch2 || r.ch}${r.v2 ? `:${r.v2}` : ''}`;
       a.textContent = node.data.slice(r.start, r.end);
       frag.append(a);
       at = r.end;
@@ -174,4 +180,13 @@ export function linkScripture(root, opts) {
     if (at < node.data.length) frag.append(node.data.slice(at));
     node.replaceWith(frag);
   }
+}
+
+// Book number (1–66) and display name for a Logos abbreviation.
+const NUM = new Map(BOOKS.map((b, i) => [b[0], i + 1]));
+export const bookNumber = (abbr) => NUM.get(abbr) || 0;
+export function bookName(abbr) {
+  const b = BOOKS.find((x) => x[0] === abbr);
+  if (!b) return abbr;
+  return b[3] ? `${b[3]} ${b[2][0]}` : b[2][0];
 }

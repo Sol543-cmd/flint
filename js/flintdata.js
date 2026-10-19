@@ -8,7 +8,7 @@
 import * as db from './db.js';
 import * as g from './graph.js';
 
-const COLS = ['notes', 'queue', 'finished', 'bookmarks', 'pinNotes', 'pinFolders', 'pos', 'books', 'bookItems'];
+const COLS = ['notes', 'queue', 'finished', 'bookmarks', 'pinNotes', 'pinFolders', 'pos', 'books', 'bookItems', 'shared', 'templates', 'bookHl', 'shelves', 'shelfItems'];
 const FORMAT = 1;
 const TOMBSTONE_DAYS = 180;
 
@@ -29,7 +29,7 @@ export const deviceId = (() => {
 })();
 
 function empty() {
-  const d = { v: FORMAT, stats: {} };
+  const d = { v: FORMAT, stats: {}, words: {} };
   for (const c of COLS) d[c] = {};
   return d;
 }
@@ -38,6 +38,7 @@ export async function load() {
   doc = (await db.get('kv', 'flintdata').catch(() => null)) || empty();
   for (const c of COLS) doc[c] ||= {};
   doc.stats ||= {};
+  doc.words ||= {};
   meta = (await db.get('kv', 'flintdataMeta').catch(() => null)) || { last: 0 };
 }
 
@@ -88,6 +89,17 @@ export function addReadingTime(day, seconds) {
   mine[day] = (mine[day] || 0) + seconds;
   persist();
 }
+export function addWords(day, n) {
+  if (!n) return;
+  const mine = (doc.words[deviceId] ||= {});
+  mine[day] = (mine[day] || 0) + n;
+  persist();
+}
+export function wordsByDay() {
+  const out = {};
+  for (const dev of Object.values(doc.words || {})) for (const [d, w] of Object.entries(dev)) out[d] = (out[d] || 0) + w;
+  return out;
+}
 export function secondsByDay() {
   const out = {};
   for (const dev of Object.values(doc.stats)) for (const [d, s] of Object.entries(dev)) out[d] = (out[d] || 0) + s;
@@ -116,6 +128,11 @@ export function merge(a, b) {
     const x = a.stats?.[dev] || {}, y = b.stats?.[dev] || {};
     out.stats[dev] = {};
     for (const d of new Set([...Object.keys(x), ...Object.keys(y)])) out.stats[dev][d] = Math.max(x[d] || 0, y[d] || 0);
+  }
+  for (const dev of new Set([...Object.keys(a.words || {}), ...Object.keys(b.words || {})])) {
+    const x = a.words?.[dev] || {}, y = b.words?.[dev] || {};
+    out.words[dev] = {};
+    for (const d of new Set([...Object.keys(x), ...Object.keys(y)])) out.words[dev][d] = Math.max(x[d] || 0, y[d] || 0);
   }
   return out;
 }
@@ -146,7 +163,7 @@ export function syncData() {
 export const snapshot = () => JSON.parse(JSON.stringify(doc));
 export function restore(data) {
   if (!data || typeof data !== 'object') return;
-  const incoming = { v: FORMAT, stats: data.stats || {} };
+  const incoming = { v: FORMAT, stats: data.stats || {}, words: data.words || {} };
   for (const c of COLS) incoming[c] = data[c] || {};
   doc = merge(doc, incoming);
   persist();

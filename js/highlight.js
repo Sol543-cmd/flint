@@ -6,7 +6,7 @@
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Markdown that can sit between visible characters without being visible itself.
-const GAP = String.raw`(?:\*\*|__|\*|_|~~|==|\x60|!?\[\[(?:[^\]|\n]*\|)?|\]\]|\]\([^)\n]*\)|\[|<[^>\n]*>)*`;
+const GAP = String.raw`(?:\*\*|__|\*|_|~~|==|\x60|\[\^[^\]\n]+\]|\^\[[^\]\n]*\]|!?\[\[(?:[^\]|\n]*\|)?|\]\]|\]\([^)\n]*\)|\[|<[^>\n]*>)*`;
 const LINK_RE = /!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)/g;
 const CODE_RE = /(`+)[^`\n][\s\S]*?\1/g;
 const TAG_RE = /(?<![^\s(])#[\p{L}\p{N}_\-/]+/gu;

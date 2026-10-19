@@ -31,15 +31,15 @@ This gives the app permission to ask you to sign in to your OneDrive.
 
 The platform must be **Single-page application**, not "Web", and the address must match exactly, including the trailing slash.
 
-## 3. Connect on your phone
+## 3. Connect on your phone or computer
 
-1. Open your app address in Safari (iPhone) or Chrome (Android).
-2. Add it to your home screen:
-   * **iPhone:** Share button → **Add to Home Screen**
-   * **Android:** ⋮ menu → **Install app** or **Add to Home screen**
-3. Open it **from the home screen icon** and do the rest there. On iPhone, the home screen app keeps its own storage separate from Safari.
-4. Paste the app ID, sign in, open your vault folder, and tap **Use this folder**.
-5. Keep the app open while it saves your notes for offline use. The home screen shows progress.
+Your app ID is already built into `config.js`, so every device only needs Microsoft sign-in:
+
+1. Open your app address in Chrome (Safari on iPhone).
+2. Add it to your home screen: **⋮ → Install app** on Android, or **Share → Add to Home Screen** on iPhone.
+3. Open Flint **from the home-screen icon**, tap **Sign in with Microsoft**, pick your vault folder and tap **Use this folder**.
+
+To change the app ID later, edit `config.js` on GitHub (open it, tap the pencil, change the text between the quotes, commit).
 
 ## Reading
 
@@ -206,6 +206,42 @@ Select text in a note and tap **Cite**. Flint finds where a clipped note came fr
 For personal notes with no web source, the button simply says **Copy** and copies the text.
 
 Check citations before submitting. Flint can only use the details the clipper saved; a missing author or date is left out, as each style's rules allow.
+
+## Reading features
+
+* **Footnotes** (`[^1]` and inline `^[…]`): under **Settings → Reading → Footnotes**, choose to tap the number to see it, show notes at the bottom of the page, or show them as endnotes.
+* **Source line:** clipped notes show the author, website and published date under the title.
+* **Full screen while reading** hides Android's status and navigation bars (Settings → Reading).
+* **Instant highlighting:** lift your finger after selecting and the text is highlighted, with **Undo, Note, Notebook and Cite** beside it. Selecting a single word shows the menu instead, so **Define** is one tap away. Turn instant highlighting off under Settings → Reading. A selection across paragraphs becomes one highlight per paragraph, which is how Obsidian needs them.
+* **Books' worth read:** the reading stats count words you actually read and show them as books of about 80,000 words.
+
+## Scripture popups
+
+Tap a Bible reference (hover on a computer) to read the passage, switch translation, or **Open in Logos**. **Settings → Scripture → Show verses from** sets your default:
+* **Offline:** KJV, WEB, NHEB, ASV, YLT, BBE, Webster. Each downloads once (about 4 MB) and then works without a connection.
+* **Online:** ESV. Paste your key from api.esv.org under **Settings → Scripture → ESV key**. It syncs privately to your other devices through Flint's data file, never into your vault. If the ESV can't load, the popup shows the KJV and says why.
+
+## Templates and exports
+
+**⋯ → Print, Export as PDF or Export as Word** opens the page setup. Pick a **template** at the top, or adjust:
+* paper, orientation and margins
+* fonts for headings, subheadings and body, body size, heading size and color
+* line spacing, spaced or indented paragraphs
+* what to include: title, source and date, highlight color, images, page numbers
+
+**Save as a template** keeps your settings; templates sync between devices. **Flint default** is always there. Markdown footnotes become real **Word footnotes** (or endnotes, your choice); in print and PDF they appear as numbered notes at the end.
+
+**Exporting highlights:** in the Notebook, tap the download icon to export what you're looking at (all highlights, one note's, or one of your notebooks) as Word, PDF, Print or Markdown, with locations ("under 'Heading', 40% through"), citations in your chosen style, and your notes. Each highlight's **⋯** can **copy it with its location and citation**.
+
+## Books (EPUB)
+
+* **Add books** with the **+** on the Books screen, by sharing an EPUB to Flint from another app (Android's Share menu), or, on a computer, by opening an EPUB with Flint.
+* Books are stored in OneDrive at **Apps/Flint/Books**, outside your vault, sync to all your devices, and are kept on each device for offline reading.
+* Reading works like your notes: pages or scroll, all display settings, Contents (chapters), bookmarks, Listen, Define, and footnote popups. Turning past the last page of a chapter goes to the next one.
+* **Highlights and notes** in books are kept in Flint's data (the EPUB file is never changed) and sync between devices.
+* **Shelves:** tap a book's **⋯** to put it on shelves; the Books screen filters by shelf.
+* **Into Obsidian:** **⋯ → Save highlights to Obsidian** creates a note in a vault folder you choose, with the book's details, highlights by chapter, locations and your notes. Saving again updates the same note, replacing only the highlights section, so anything you've written around it stays.
+* Flint reads DRM-free EPUBs. Books locked to Kindle, Kobo or Google Play can't be opened.
 
 ## Built to last
 

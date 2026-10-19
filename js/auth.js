@@ -7,7 +7,7 @@ const K_TOKENS = 'flint.tokens';
 
 export class AuthNeeded extends Error { constructor(m = 'Sign in to OneDrive to sync.') { super(m); this.name = 'AuthNeeded'; } }
 
-export const clientId = () => localStorage.getItem(K_CLIENT) || '';
+export const clientId = () => localStorage.getItem(K_CLIENT) || window.FLINT_CONFIG?.appId?.trim() || '';
 export function setClientId(id) {
   localStorage.setItem(K_CLIENT, id.trim());
   localStorage.removeItem(K_TOKENS);

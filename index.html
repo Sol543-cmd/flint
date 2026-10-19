@@ -93,6 +93,10 @@
         <div class="review-head"><span>From your highlights</span><button class="linkbtn" id="reviewNext">Another</button></div>
         <button class="review-body" id="reviewBody"></button>
       </div>
+      <div id="shelfStrip" class="shelf" hidden>
+        <div class="shelf-head"><h2 class="sec">Books</h2><button class="linkbtn" data-go="books">All books</button></div>
+        <div class="shelf-row" id="shelfRow"></div>
+      </div>
       <h2 class="sec">Recent</h2>
       <ul id="recent" class="rows"></ul>
     </main>
@@ -100,6 +104,7 @@
       <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
       <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
       <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+      <button data-go="books"><svg class="ic"><use href="#i-book"/></svg><span>Books</span></button>
       <button data-go="settings"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span></button>
     </nav>
   </section>
@@ -144,7 +149,7 @@
     <main class="home">
       <div id="nbHead"></div>
       <div class="seg nb-seg" id="nbTabs"><button data-v="all" aria-pressed="true">All</button><button data-v="bynote" aria-pressed="false">By note</button><button data-v="books" aria-pressed="false">My notebooks</button></div>
-      <div class="nb-tools"><input id="nbFilter" class="filter" type="search" placeholder="Search" autocomplete="off"><button class="chip" id="nbOnlyNotes" aria-pressed="false">With notes</button></div>
+      <div class="nb-tools"><input id="nbFilter" class="filter" type="search" placeholder="Search" autocomplete="off"><button class="chip" id="nbOnlyNotes" aria-pressed="false">With notes</button><button class="ib" id="nbExport" aria-label="Export highlights"><svg class="ic"><use href="#i-download"/></svg></button></div>
       <div id="nbList"></div>
     </main>
   </section>
@@ -163,6 +168,20 @@
     </main>
   </section>
 
+  <!-- Books -->
+  <section id="booksView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
+      <div class="tb-title">Books</div>
+      <label class="ib" for="bookFile" aria-label="Add a book" role="button"><svg class="ic"><use href="#i-plus"/></svg></label>
+    </header>
+    <main class="home">
+      <div class="chips left shelf-tabs" id="shelfTabs"></div>
+      <div class="bk-grid" id="bookGrid"></div>
+    </main>
+    <input type="file" id="bookFile" accept=".epub,application/epub+zip" multiple hidden>
+  </section>
+
   <!-- Reader -->
   <section id="reader" class="rd" hidden>
     <div class="rd-status"><span id="rdStatusTitle"></span><span id="rdClock"></span></div>
@@ -177,6 +196,7 @@
       </div>
       </div>
     </div>
+    <div id="fnStrip" class="fn-strip" aria-label="Footnotes on this page"></div>
     <button id="rdFoot" class="rd-foot" aria-label="Change progress display"><span id="rdProg"></span></button>
     <button id="rdBack" class="rd-back" hidden></button>
     <div id="hlPop" class="hl-pop" hidden></div>
@@ -361,6 +381,10 @@
     </section>
     <section class="group">
       <h2>Scripture</h2>
+      <label class="field col"><span>Show verses from</span><select id="setBibleText"></select>
+        <small>Tap a reference while reading to see the passage. All but the ESV work offline once they’ve been used.</small></label>
+      <label class="field col"><span>ESV key</span><input id="setEsv" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your key from api.esv.org">
+        <small>Saved in Flint’s own data, so it reaches your other devices but never your vault.</small></label>
       <label class="field"><span>Link Bible references</span><select id="setScripture"><option value="on">On</option><option value="off">Off</option></select></label>
       <label class="field"><span>Open references with</span><select id="setLogosMode"><option value="app">Logos app</option><option value="refly">Ref.ly link</option></select></label>
       <label class="field col"><span>Bible version</span><input id="setBible" placeholder="ESV" autocapitalize="characters" autocomplete="off">
@@ -381,6 +405,10 @@
         <input id="setHiddenTags" autocapitalize="off" autocomplete="off" placeholder="e.g. todo, draft*">
         <small>Tags to leave out of the Tags list. End with * to hide every tag that starts that way. Footnote anchors from Word documents (like #_ftn12) are always hidden.</small></label>
       
+      <label class="field col"><span>Footnotes</span>
+        <select id="setFn"><option value="popup">Tap the number to see it</option><option value="page">At the bottom of the page</option><option value="endnotes">As endnotes at the end</option></select></label>
+      <label class="field"><span>Full screen while reading</span><select id="setFull"><option value="on">On</option><option value="off">Off</option></select></label>
+      <label class="field"><span>Highlight as soon as I select</span><select id="setAutoHl"><option value="on">On</option><option value="off">Off</option></select></label>
       <label class="field"><span>Open notes in</span>
         <select id="setOpen"><option value="read">Read</option><option value="edit">Edit</option></select></label>
     </section>
@@ -449,6 +477,7 @@
   <h2 class="sheet-title" id="moreTitle"></h2>
   <ul class="actions">
     <li><button data-act2="nbnote"><svg class="ic"><use href="#i-book"/></svg><span>Highlights in this note</span></button></li>
+    <li><button data-act2="bookobs"><svg class="ic"><use href="#i-download"/></svg><span>Save highlights to Obsidian<small>Creates or updates a note in your vault</small></span></button></li>
     <li><button data-act2="bookmark"><svg class="ic"><use href="#i-bookmark"/></svg><span id="moreBookmark">Bookmark this page</span></button></li>
     <li><button data-act2="queue"><svg class="ic"><use href="#i-queue"/></svg><span id="moreQueue">Add to Up next</span></button></li>
     <li class="sep"></li>
@@ -461,17 +490,12 @@
   <div class="aa-row" id="exportToRow"><span>Exported files</span><div class="seg" data-ppref="exportTo"><button data-v="save">Save to phone</button><button data-v="share">Share</button></div></div>
 </div>
 
-<div id="sheetPrint" class="sheet" hidden role="dialog" aria-label="Page setup">
+<div id="sheetPrint" class="sheet tall" hidden role="dialog" aria-label="Page setup">
   <div class="grab"></div>
   <h2 class="sheet-title" id="printTitle">Print</h2>
-  <div class="aa-row"><span>Paper</span><div class="seg" data-ppref="paper"><button data-v="letter">Letter</button><button data-v="a4">A4</button><button data-v="legal">Legal</button><button data-v="a5">A5</button></div></div>
-  <div class="aa-row"><span>Orientation</span><div class="seg" data-ppref="orient"><button data-v="portrait">Portrait</button><button data-v="landscape">Landscape</button></div></div>
-  <div class="aa-row"><span>Margins</span><div class="seg" data-ppref="margin"><button data-v="narrow">Narrow</button><button data-v="normal">Normal</button><button data-v="wide">Wide</button></div></div>
-  <div class="aa-row"><span>Typeface</span><div class="seg" data-ppref="font"><button data-v="serif">Serif</button><button data-v="sans">Sans</button><button data-v="reading">Reading font</button></div></div>
-  <div class="aa-row"><span>Text size</span><div class="seg" data-ppref="size"><button data-v="small">Small</button><button data-v="normal">Normal</button><button data-v="large">Large</button></div></div>
-  <div class="aa-row"><span>Line spacing</span><div class="seg" data-ppref="spacing"><button data-v="single">Single</button><button data-v="onehalf">1.5</button><button data-v="double">Double</button></div></div>
-  <div class="aa-row"><span>Include</span><div class="chips">
-    <button data-pflag="title">Title</button><button data-pflag="source">Source</button><button data-pflag="highlights">Highlight color</button><button data-pflag="images">Images</button></div></div>
+  <div class="tpl-row"><span>Template</span><select id="tplSelect"></select></div>
+  <div class="tpl-body" id="tplBody"></div>
+  <div class="tpl-actions" id="tplActions"></div>
   <button class="btn primary" id="printGo">Print</button>
   <p class="aa-note" id="printHint"></p>
 </div>
@@ -496,6 +520,29 @@
   <div class="modal-row"><button class="btn danger" id="noteDelete">Delete</button><button class="btn primary" id="noteSave">Save</button></div>
 </div>
 
+<div id="sheetNbx" class="sheet" hidden role="dialog" aria-label="Export highlights">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Export these highlights</h2>
+  <div class="aa-row"><span>Include</span><div class="chips"><button data-xflag="loc">Locations</button><button data-xflag="cite">Citations</button><button data-xflag="notes">My notes</button></div></div>
+  <div class="aa-row"><span>Citation style</span><select id="xCiteStyle"></select></div>
+  <ul class="actions">
+    <li><button data-xgo="docx"><svg class="ic"><use href="#i-download"/></svg><span>Word<small>Formatted with your template</small></span></button></li>
+    <li><button data-xgo="pdf"><svg class="ic"><use href="#i-download"/></svg><span>PDF</span></button></li>
+    <li><button data-xgo="print"><svg class="ic"><use href="#i-print"/></svg><span>Print</span></button></li>
+    <li><button data-xgo="md"><svg class="ic"><use href="#i-download"/></svg><span>Markdown<small>Ready to drop into your vault</small></span></button></li>
+  </ul>
+</div>
+
+<div id="sheetHlx" class="sheet" hidden role="dialog" aria-label="Highlight">
+  <div class="grab"></div>
+  <blockquote class="note-quote" id="hlxQuote"></blockquote>
+  <ul class="actions">
+    <li><button data-hlx="copy"><svg class="ic"><use href="#i-copy"/></svg><span>Copy with location and citation</span></button></li>
+    <li><button data-hlx="book"><svg class="ic"><use href="#i-book"/></svg><span>Add to a notebook</span></button></li>
+    <li><button data-hlx="open"><svg class="ic"><use href="#i-read"/></svg><span>Open it in the note</span></button></li>
+  </ul>
+</div>
+
 <div id="sheetBooks" class="sheet" hidden role="dialog" aria-label="Add to a notebook">
   <div class="grab"></div>
   <h2 class="sheet-title">Add to a notebook</h2>
@@ -504,11 +551,24 @@
   <button class="btn" id="bookNew">New notebook</button>
 </div>
 
+<div id="sheetBookMenu" class="sheet" hidden role="dialog" aria-label="Book">
+  <div class="grab"></div>
+  <h2 class="sheet-title" id="bmTitle"></h2>
+  <h3 class="sheet-sub">Shelves</h3>
+  <ul class="folderpick books-pick" id="bmShelves"></ul>
+  <button class="linkbtn" data-bmnewshelf>New shelf</button>
+  <ul class="actions">
+    <li><button data-bmact="obs"><svg class="ic"><use href="#i-download"/></svg><span>Save highlights to Obsidian<small>Creates or updates a note in your vault</small></span></button></li>
+    <li><button data-bmact="remove"><svg class="ic"><use href="#i-x"/></svg><span>Remove from Flint</span></button></li>
+  </ul>
+</div>
+
 <div id="sheetStats" class="sheet" hidden role="dialog" aria-label="Reading stats">
   <div class="grab"></div>
   <h2 class="sheet-title">Your reading</h2>
   <div class="stat-grid" id="statGrid"></div>
   <div class="bars" id="statBars"></div>
+  <div id="statBooks" class="stat-books"></div>
 </div>
 
 <div id="sheetDefine" class="sheet tall" hidden role="dialog" aria-label="Dictionary">
@@ -531,10 +591,15 @@
   </form>
 </div>
 
+<div id="card" class="card" hidden role="dialog"></div>
+
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="vendor/marked.min.js"></script>
+<script src="config.js"></script>
+<script src="vendor/markdown-it.min.js"></script>
+<script src="vendor/markdown-it-footnote.min.js"></script>
 <script src="vendor/purify.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

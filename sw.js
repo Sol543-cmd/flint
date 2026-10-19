@@ -1,6 +1,6 @@
 // Offline support: keeps the app itself available without a connection.
 // Notes live in IndexedDB (see js/db.js); this only caches the app files.
-const VERSION = 'flint-8';
+const VERSION = 'flint-12';
 const SHELL = [
   './',
   'index.html',
@@ -21,7 +21,11 @@ const SHELL = [
   'js/listen.js',
   'js/docxexport.js',
   'vendor/docx.min.js',
-  'vendor/marked.min.js',
+  'vendor/markdown-it.min.js',
+  'vendor/markdown-it-footnote.min.js',
+  'js/bible.js',
+  'js/books.js',
+  'vendor/jszip.min.js',
   'vendor/purify.min.js',
   'icons/flint-mark.svg',
   'icons/icon-192.png',
@@ -56,13 +60,31 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
+// Books shared to Flint from another app (Android's Share menu) arrive here.
+async function receiveShare(req) {
+  const form = await req.formData();
+  const files = form.getAll('file').filter((f) => f && f.name);
+  const dbh = await new Promise((res, rej) => { const r = indexedDB.open('flint-share', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  for (const f of files) {
+    const buf = await f.arrayBuffer();
+    await new Promise((res) => { const t = dbh.transaction('files', 'readwrite'); t.objectStore('files').put({ name: f.name, type: f.type, buf }, `${Date.now()}-${f.name}`); t.oncomplete = res; t.onerror = res; });
+  }
+  return Response.redirect('./?shared=1', 303);
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/share-target')) { e.respondWith(receiveShare(req)); return; }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
   if (url.origin !== self.location.origin) return; // OneDrive and sign-in always go to the network
 
+  // Your settings file: always try the network first, so a new app ID takes effect right away.
+  if (url.pathname.endsWith('/config.js')) {
+    e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res; }).catch(() => caches.match(req)));
+    return;
+  }
   // App pages: network first so updates arrive, cache when offline.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then((res) => {

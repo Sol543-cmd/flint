@@ -17,9 +17,9 @@ export function loadDocx() {
 
 export const PAPER_DXA = { letter: [12240, 15840], a4: [11906, 16838], legal: [12240, 20160], a5: [8391, 11906] };
 export const MARGIN_DXA = { narrow: 720, normal: 1440, wide: 2160 };
-const SIZE_HALFPT = { small: 21, normal: 24, large: 28 };
 const LINE = { single: 264, onehalf: 360, double: 480 };
-const FONT = { serif: 'Georgia', sans: 'Calibri', reading: 'Georgia' };
+export const HEAD_SCALE = { modest: [1.7, 1.4, 1.2, 1.08], standard: [2, 1.6, 1.3, 1.12], large: [2.4, 1.9, 1.5, 1.2] };
+export const HEAD_COLOR = { black: '000000', ink: '1F3A5F', violet: '5146C4' };
 const BLOCK = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TABLE', 'HR', 'SECTION', 'DETAILS', 'FIGURE', 'DL']);
 
 // images: Map(img element -> { data: ArrayBuffer, type: 'png'|'jpg'|'gif'|'bmp', w, h })
@@ -32,6 +32,20 @@ export async function buildDocx(root, opts) {
   const contentPx = Math.floor((contentDxa / 1440) * 96);
   const images = opts.images || new Map();
   let numInstance = 0;
+  const bodySize = Math.round(Number(opts.size || 12) * 2);
+  const indentParas = opts.paras === 'indented';
+
+  // Markdown footnotes become real Word footnotes (or a Notes list at the end).
+  const fnSource = new Map();
+  const sec = root.querySelector(':scope > section.footnotes');
+  root.querySelector(':scope > hr.footnotes-sep')?.remove();
+  if (sec) {
+    for (const li of sec.querySelectorAll('li[id]')) fnSource.set(li.id, li);
+    if (opts.wordNotes !== 'endnotes') sec.remove();
+    else { const h = document.createElement('h2'); h.textContent = 'Notes'; sec.prepend(h); }
+  }
+  const footnotes = {};
+  const fnIds = new Map();
 
   const textRun = (text, st) => new D.TextRun({
     text, bold: st.b || undefined, italics: st.i || undefined, strike: st.s || undefined,
@@ -60,6 +74,20 @@ export async function buildDocx(root, opts) {
       if (tag === 'BR') { out.push(new D.TextRun({ break: 1 })); continue; }
       if (tag === 'IMG') { const r = imageRun(c); if (r) out.push(r); continue; }
       if (tag === 'INPUT') { if (c.type === 'checkbox') out.push(textRun(c.checked ? '☑ ' : '☐ ', st)); continue; }
+      if (tag === 'SUP' && c.classList.contains('footnote-ref') && opts.wordNotes !== 'endnotes') {
+        const id = (c.querySelector('a')?.getAttribute('href') || '').replace(/^#/, '') || c.querySelector('a')?.dataset.fn;
+        const li = fnSource.get(id);
+        if (li) {
+          if (!fnIds.has(id)) {
+            const n = fnIds.size + 1;
+            fnIds.set(id, n);
+            footnotes[n] = { children: blocks(li, { noIndent: true }, []).filter((x) => x instanceof D.Paragraph) };
+            if (!footnotes[n].children.length) footnotes[n].children = [new D.Paragraph(li.textContent.trim())];
+          }
+          out.push(new D.FootnoteReferenceRun(fnIds.get(id)));
+          continue;
+        }
+      }
       const ns = { ...st };
       if (tag === 'STRONG' || tag === 'B') ns.b = true;
       if (tag === 'EM' || tag === 'I') ns.i = true;
@@ -86,6 +114,7 @@ export async function buildDocx(root, opts) {
 
   function para(runs, ctx, extra = {}) {
     const p = { children: trimRuns(runs), ...extra };
+    if (indentParas && !ctx.quote && !ctx.noIndent) { p.indent = { firstLine: 360 }; p.spacing = { after: 0 }; }
     if (ctx.quote) {
       p.indent = { left: 567 * ctx.quote };
       p.border = { left: { style: D.BorderStyle.SINGLE, size: 12, color: ctx.callout ? '6A55E3' : 'BBBBBB', space: 8 } };
@@ -190,23 +219,29 @@ export async function buildDocx(root, opts) {
   }
   blocks(root, {}, children);
 
-  const font = FONT[opts.font] || 'Georgia';
-  const size = SIZE_HALFPT[opts.size] || 24;
+  const font = opts.wordFonts?.body || 'Georgia';
+  const headFont = opts.wordFonts?.head || font;
+  const subFont = opts.wordFonts?.sub || headFont;
+  const size = bodySize;
+  const sc = HEAD_SCALE[opts.headScale] || HEAD_SCALE.standard;
+  const color = HEAD_COLOR[opts.headColor] || '000000';
+  const hs = (k) => Math.round(size * k);
   const bullet = ['•', '◦', '▪'];
   const numFmt = [D.LevelFormat.DECIMAL, D.LevelFormat.LOWER_LETTER, D.LevelFormat.LOWER_ROMAN];
   const doc = new D.Document({
     creator: 'Flint',
+    footnotes,
     title: opts.title || opts.docTitle || 'Note',
     styles: {
       default: {
         document: { run: { font, size }, paragraph: { spacing: { after: 160, line: LINE[opts.spacing] || 264, lineRule: D.LineRuleType.AUTO } } },
-        title: { run: { font, size: size + 16, bold: true }, paragraph: { spacing: { after: 120 } } },
-        heading1: { run: { font, size: size + 10, bold: true }, paragraph: { spacing: { before: 360, after: 120 } } },
-        heading2: { run: { font, size: size + 6, bold: true }, paragraph: { spacing: { before: 280, after: 100 } } },
-        heading3: { run: { font, size: size + 3, bold: true }, paragraph: { spacing: { before: 240, after: 80 } } },
-        heading4: { run: { font, size, bold: true } },
-        heading5: { run: { font, size, bold: true, italics: true } },
-        heading6: { run: { font, size, italics: true } },
+        title: { run: { font: headFont, size: hs(sc[0]), bold: true, color }, paragraph: { spacing: { after: 120 } } },
+        heading1: { run: { font: headFont, size: hs(sc[1]), bold: true, color }, paragraph: { spacing: { before: 360, after: 120 } } },
+        heading2: { run: { font: subFont, size: hs(sc[2]), bold: true, color }, paragraph: { spacing: { before: 280, after: 100 } } },
+        heading3: { run: { font: subFont, size: hs(sc[3]), bold: true, color }, paragraph: { spacing: { before: 240, after: 80 } } },
+        heading4: { run: { font: subFont, size, bold: true, color } },
+        heading5: { run: { font: subFont, size, bold: true, italics: true, color } },
+        heading6: { run: { font: subFont, size, italics: true, color } },
       },
     },
     numbering: {
@@ -222,6 +257,7 @@ export async function buildDocx(root, opts) {
           margin: { top: margin, bottom: margin, left: margin, right: margin },
         },
       },
+      ...(opts.pageNumbers ? { footers: { default: new D.Footer({ children: [new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [new D.TextRun({ children: [D.PageNumber.CURRENT], size: Math.max(16, size - 4), font })] })] }) } } : {}),
       children,
     }],
   });
