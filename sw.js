@@ -1,6 +1,6 @@
 // Offline support: keeps the app itself available without a connection.
 // Notes live in IndexedDB (see js/db.js); this only caches the app files.
-const VERSION = 'flint-14';
+const VERSION = 'flint-15';
 const SHELL = [
   './',
   'index.html',
@@ -94,10 +94,21 @@ self.addEventListener('fetch', (e) => {
     }).catch(() => caches.match('index.html')));
     return;
   }
-  // Other app files: serve from cache, refresh in the background.
-  e.respondWith(caches.open(VERSION).then(async (c) => {
-    const hit = await c.match(req, { ignoreSearch: true });
-    const fresh = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
-    return hit || fresh;
-  }));
+  // Large files that never change (Bibles, fonts, libraries, icons): cache first.
+  if (/\/(bible|fonts|vendor|icons)\//.test(url.pathname)) {
+    e.respondWith(caches.open(VERSION).then(async (c) => {
+      const hit = await c.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) c.put(req, res.clone());
+      return res;
+    }));
+    return;
+  }
+  // Flint's own code and styles: always the newest from the network, so the page and its
+  // code never come from different versions; the saved copy is used only when offline.
+  e.respondWith(fetch(req).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+    return res;
+  }).catch(() => caches.match(req, { ignoreSearch: true })));
 });
