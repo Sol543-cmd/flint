@@ -1160,59 +1160,108 @@ function verifyHighlight(n, newText, delta, norms) {
   return [].concat(norms || []).every((nm) => texts.some((t) => t.includes(nm.replace(/\s/g, ''))));
 }
 
-// Highlight the current selection. Selections across paragraphs become one
-// highlight per paragraph (Obsidian highlights can't cross a paragraph break).
+// ---------- highlighting notes: simple, local and fast ----------
+// Each paragraph on screen knows which lines of the note it came from, so a highlight
+// only ever looks inside the paragraph you selected. The text is marked on screen
+// directly (no re-drawing), and the note gets the same Obsidian ==highlight==.
+const SKIP_HL = 'sup.footnote-ref, .callout-title, .embed, .rd-source';
+const blockOf = (node) => (node.nodeType === 1 ? node : node.parentElement)?.closest('[data-sl]');
+function lineSlice(src, block) {
+  const lines = src.split('\n');
+  const sl = Number(block.dataset.sl), el = Number(block.dataset.el);
+  let base = 0;
+  for (let k = 0; k < sl; k++) base += lines[k].length + 1;
+  return { base, text: lines.slice(sl, el).join('\n') };
+}
+function selectedPieces(range, content) {
+  const root = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const byBlock = new Map();
+  while (w.nextNode()) {
+    const t = w.currentNode;
+    if (!range.intersectsNode(t) || t.parentElement.closest(SKIP_HL)) continue;
+    const b = blockOf(t);
+    if (!b || !content.contains(b)) continue;
+    const s = t === range.startContainer ? range.startOffset : 0;
+    const e = t === range.endContainer ? range.endOffset : t.data.length;
+    if (e <= s) continue;
+    if (!byBlock.has(b)) byBlock.set(b, { block: b, segs: [] });
+    byBlock.get(b).segs.push({ node: t, s, e });
+  }
+  return [...byBlock.values()].map((p) => {
+    // Where the selection starts within the paragraph's visible text.
+    let before = '';
+    const bw = document.createTreeWalker(p.block, NodeFilter.SHOW_TEXT);
+    let blockText = '';
+    while (bw.nextNode()) {
+      const t = bw.currentNode;
+      if (t.parentElement.closest(SKIP_HL)) continue;
+      if (t === p.segs[0].node) before = blockText + t.data.slice(0, p.segs[0].s);
+      blockText += t.data;
+    }
+    return { ...p, text: p.segs.map((g) => g.node.data.slice(g.s, g.e)).join(''), before, blockText };
+  });
+}
+// One <mark> per highlighted paragraph, even across bold or links (matches how it renders later).
+function wrapSegs(segs) {
+  if (!segs.length) return [];
+  const r = document.createRange();
+  r.setStart(segs[0].node, segs[0].s);
+  const last = segs[segs.length - 1];
+  r.setEnd(last.node, last.e);
+  const m = document.createElement('mark');
+  m.append(r.extractContents());
+  r.insertNode(m);
+  // Drop empty leftovers that splitting a bold or italic can leave behind.
+  for (const sib of [m.previousSibling, m.nextSibling]) if (sib?.nodeType === 1 && !sib.textContent && !sib.querySelector('img')) sib.remove();
+  return [m];
+}
+function unwrapMarks(marks) {
+  for (const m of marks) { if (!m.isConnected) continue; const parent = m.parentNode; while (m.firstChild) parent.insertBefore(m.firstChild, m); m.remove(); parent.normalize(); }
+}
+function sameRender(a, b, delta) {
+  const x = document.createElement('div'); x.innerHTML = renderMarkdown(a, { htmlMode: P.htmlMode, hideLangs: langSet() });
+  const y = document.createElement('div'); y.innerHTML = renderMarkdown(b, { htmlMode: P.htmlMode, hideLangs: langSet() });
+  return x.textContent.replace(/\s/g, '') === y.textContent.replace(/\s/g, '') && y.querySelectorAll('mark').length === x.querySelectorAll('mark').length + delta;
+}
+
 function addHighlight({ thenNote = false, quiet = false } = {}) {
   if (R.book) return addBookHighlight({ thenNote, quiet });
   const n = cur();
   const sel = getSelection();
-  if (!n || sel.isCollapsed) { hidePop(); return null; }
+  if (!n || sel.isCollapsed || !sel.rangeCount) { hidePop(); return null; }
   if (!canWrite(n)) { hidePop(); return null; }
   const range = sel.getRangeAt(0);
   const content = $('#rdContent');
-  const anc = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
-  if (anc?.closest('.embed')) { toast('Open the embedded note to highlight it.'); hidePop(); return null; }
-  const A = document.createTextNode('\uE000'), B = document.createTextNode('\uE001');
-  const r2 = range.cloneRange(); r2.collapse(false); r2.insertNode(B);
-  const r1 = range.cloneRange(); r1.collapse(true); r1.insertNode(A);
-  const full = flatText(content);
-  A.remove(); B.remove(); content.normalize();
+  const pieces = selectedPieces(range, content).filter((p) => /[\p{L}\p{N}]/u.test(p.text));
+  if (!pieces.length) { hidePop(); toast('Select text in this note to highlight it.'); return null; }
+  let src = n.local;
+  const edits = [];
+  for (const p of pieces) {
+    const slice = lineSlice(src, p.block);
+    const norm = normalize(p.text).trim();
+    const blockNorm = normalize(p.blockText);
+    const at = normalize(p.before + p.text.match(/^\s*/)[0]).length;
+    const occ = occurrences(blockNorm, norm);
+    const plan = planHighlight(slice.text, p.text, Math.max(0, occ.filter((x) => x < at).length), occ.length);
+    if (plan.error) { hidePop(); toast(plan.error, 3500); return null; }
+    if (!sameRender(slice.text, plan.text, 1)) { hidePop(); toast('Flint couldn’t highlight that spot without changing other text.', 3500); return null; }
+    edits.push({ base: slice.base, oldLen: slice.text.length, text: plan.text, start: slice.base + plan.start, seg: p.segs });
+  }
+  for (const ed of [...edits].sort((a, b) => b.base - a.base)) src = src.slice(0, ed.base) + ed.text + src.slice(ed.base + ed.oldLen);
+  const prev = n.local;
   sel.removeAllRanges();
   hidePop();
-  const i = full.indexOf('\uE000'), j = full.indexOf('\uE001');
-  if (i < 0 || j < 0 || j <= i) { toast('Select text inside this note to highlight it.'); return null; }
-  const selected = full.slice(i + 1, j);
-  const plain = full.replace(/[\uE000\uE001]/g, '');
-  const fullNorm = normalize(plain);
-  const pieces = [];
-  let off = 0;
-  for (const part of selected.split(/(\n+)/)) {
-    if (part && !/^\n+$/.test(part) && /[\p{L}\p{N}]/u.test(part)) pieces.push({ text: part, start: i + off });
-    off += part.length;
-  }
-  let src = n.local;
-  const starts = [], norms = [];
-  for (const pc of pieces) {
-    const norm = normalize(pc.text).trim();
-    const at = normalize(plain.slice(0, pc.start) + pc.text.match(/^\s*/)[0]).length;
-    if (!fullNorm.startsWith(norm, at)) { toast('Flint couldn’t match that selection. Try selecting a little differently.'); return null; }
-    const occ = occurrences(fullNorm, norm);
-    const plan = planHighlight(src, pc.text, occ.filter((x) => x < at).length, occ.length);
-    if (plan.error) { toast(plan.error, 4200); return null; }
-    src = plan.text;
-    starts.push(plan.start);
-    norms.push(plan.norm);
-  }
-  if (!starts.length) return null;
-  if (!verifyHighlight(n, src, starts.length, norms)) { toast('Flint couldn’t add that highlight without changing other text, so it left the note as it was.', 4200); return null; }
-  const prev = n.local;
+  const marks = edits.flatMap((ed) => wrapSegs(ed.seg));
   sy.editLocal(n.id, src);
-  rerenderReader();
+  // Starts shift by the "==" pairs added before them.
   const hs = listHighlights(src);
+  const starts = edits.map((ed) => ed.start + 4 * edits.filter((o) => o.base < ed.base).length).sort((a, b) => a - b);
   const made = starts.map((st) => hs.find((h) => h.start === st)).filter(Boolean).map((h) => ({ noteId: n.id, text: h.text, occ: h.occ }));
-  R.lastHl = { noteId: n.id, prev, next: src, made, excerpt: normalize(selected).trim() };
+  decorateMarks();
+  R.lastHl = { noteId: n.id, prev, next: src, made, marks, excerpt: normalize(pieces.map((p) => p.text).join(' ')).trim() };
   if (thenNote && made[0]) { openNoteEditor(made[0]); return R.lastHl; }
-  if (!quiet) toast(made.length > 1 ? `Highlighted ${made.length} paragraphs.` : 'Highlighted.');
+  if (!quiet) toast('Highlighted.');
   return R.lastHl;
 }
 
@@ -1222,11 +1271,11 @@ function undoHighlight() {
   const n = cur();
   hidePop();
   if (!h || !n || n.id !== sy.resolveId(h.noteId)) return;
-  if (n.local !== h.next) { toast('The note changed since, so Flint can’t undo that highlight. Tap it to remove it.'); return; }
+  if (n.local !== h.next) { toast('The note changed since, so Flint can’t undo that. Tap the highlight to remove it.'); return; }
   sy.editLocal(n.id, h.prev);
+  unwrapMarks(h.marks || []);
   R.lastHl = null;
-  rerenderReader();
-  toast('Highlight undone.');
+  decorateMarks();
 }
 
 // After highlighting instantly, offer what else you might want.
@@ -1270,14 +1319,19 @@ async function removeHighlight() {
     const ok = await ask({ label: 'Remove this highlight?', input: false, ok: 'Remove', hint: 'Your note on it will be deleted too.' });
     if (!ok) return;
   }
-  const marks = contentMarks($('#rdContent'));
-  const plan = planRemove(n.local, marks.indexOf(mark), marks.length);
-  if (plan.error) { toast(plan.error, 4200); return; }
-  if (!verifyHighlight(n, plan.text, -1)) { toast('Flint couldn’t remove that highlight safely. You can remove it in Edit.', 4200); return; }
-  sy.editLocal(n.id, plan.text);
+  const block = blockOf(mark);
+  if (!block) { toast('You can remove this highlight in Edit.'); return; }
+  const slice = lineSlice(n.local, block);
+  const spans = listHighlights(slice.text);
+  const inBlock = $$('mark', block).filter((m) => !m.closest('.embed'));
+  const want = normalize(mark.textContent).trim().toLowerCase();
+  const span = spans.length === inBlock.length ? spans[inBlock.indexOf(mark)] : spans.find((h) => h.text.toLowerCase() === want) || spans.find((h) => h.text.toLowerCase().includes(want));
+  if (!span) { toast('You can remove this highlight in Edit.'); return; }
+  const newSlice = slice.text.slice(0, span.start) + slice.text.slice(span.start + 2, span.end - 2) + slice.text.slice(span.end);
+  sy.editLocal(n.id, n.local.slice(0, slice.base) + newSlice + n.local.slice(slice.base + slice.text.length));
   if (ann) fd.remove('notes', ann.key);
-  rerenderReader();
-  toast('Highlight removed.');
+  unwrapMarks([mark]);
+  decorateMarks();
 }
 
 // ---------- contents sheet ----------
