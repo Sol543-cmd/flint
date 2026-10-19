@@ -658,3 +658,6 @@ button.home-sub { display: block; text-align: left; padding: 0; }
 .hl-pop button + button { border-left: 0; }
 .hl-pop button.primary { background: var(--mark); color: #2a2200; font-weight: 700; padding: 8px 18px; }
 .hl-pop .ic { width: 20px; height: 20px; }
+
+/* Bar at the top, so Android's own bottom bar (on Pixel phones) can't cover it */
+.hl-pop { top: calc(var(--st) + 10px) !important; bottom: auto !important; }

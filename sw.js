@@ -1,6 +1,6 @@
 // Offline support: keeps the app itself available without a connection.
 // Notes live in IndexedDB (see js/db.js); this only caches the app files.
-const VERSION = 'flint-15';
+const VERSION = 'flint-17';
 const SHELL = [
   './',
   'index.html',
@@ -82,12 +82,12 @@ self.addEventListener('fetch', (e) => {
 
   // Your settings file: always try the network first, so a new app ID takes effect right away.
   if (url.pathname.endsWith('/config.js')) {
-    e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res; }).catch(() => caches.match(req)));
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res; }).catch(() => caches.match(req)));
     return;
   }
   // App pages: network first so updates arrive, cache when offline.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then((res) => {
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => {
       const copy = res.clone();
       caches.open(VERSION).then((c) => c.put('index.html', copy));
       return res;
@@ -107,7 +107,7 @@ self.addEventListener('fetch', (e) => {
   }
   // Flint's own code and styles: always the newest from the network, so the page and its
   // code never come from different versions; the saved copy is used only when offline.
-  e.respondWith(fetch(req).then((res) => {
+  e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req, { ignoreSearch: true })));

@@ -1052,7 +1052,12 @@ function bindReader() {
       try { await navigator.clipboard.writeText(h.excerpt); toast('Copied.'); } catch { toast('Copying isn’t allowed here.'); }
       return;
     }
-    if (act === 'hl') { if (addHighlight({ quiet: true })) showAfterPop(); return; }
+    if (act === 'hl') {
+      // Hide the bar at once; do the work right after the screen updates.
+      $('#hlPop').hidden = true;
+      setTimeout(() => { if (addHighlight({ quiet: true })) showAfterPop(); }, 0);
+      return;
+    }
     if (act === 'note') return addHighlight({ thenNote: true });
     if (act === 'remove') return removeHighlight();
     if (act === 'tobook') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openBookPicker({ noteId: R.id, text: info.text, occ: info.occ }); return; }
@@ -3613,7 +3618,8 @@ function migrateLocalData() {
 async function start() {
   applyPrefs();
   bind();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Check for a new version of Flint every time it opens, skipping the browser's file cache.
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => r.update()).catch(() => {});
   navigator.storage?.persist?.().catch(() => {});
   let redirect = null;
   try { redirect = await auth.handleRedirect(); } catch (e) { setTimeout(() => toast(e.message, 6000), 300); }
@@ -3653,5 +3659,11 @@ start().catch((e) => {
   console.error(e);
   $('#app').hidden = true;
   $('#onboard').hidden = false;
-  $('#obStep').innerHTML = `<h1>Flint couldn’t start</h1><p>Your notes in OneDrive are safe. ${esc(e.message || '')}</p><button class="btn primary" onclick="location.reload()">Try again</button>`;
+  $('#obStep').innerHTML = `<h1>Flint couldn’t start</h1><p>Your notes in OneDrive are safe. ${esc(e.message || '')}</p><button class="btn primary" id="obRetry">Try again</button>`;
+  // Try again with a clean copy of the app (notes and settings are kept).
+  $('#obRetry').onclick = async () => {
+    try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* ignore */ }
+    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.update(); } catch { /* ignore */ }
+    location.reload();
+  };
 });
