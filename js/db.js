@@ -62,3 +62,7 @@ export async function clear(store) {
   t.objectStore(store).clear();
   return done(t);
 }
+export async function has(store, key) {
+  const d = await open();
+  return (await req(d.transaction(store).objectStore(store).getKey(key))) !== undefined;
+}

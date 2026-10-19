@@ -160,7 +160,7 @@ export async function syncBooks(onChange) {
   const next = [];
   for (const it of remote) {
     const have = list.find((b) => b.id === it.id);
-    if (have && have.eTag === it.eTag && (await bookFile(it.id))) { next.push(have); continue; }
+    if (have && have.eTag === it.eTag && (await db.has('blobs', `book:${it.id}`))) { next.push(have); continue; }
     try {
       const { bytes } = await g.download(it.id);
       await db.put('blobs', { buf: bytes }, `book:${it.id}`);

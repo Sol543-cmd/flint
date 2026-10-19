@@ -57,6 +57,7 @@
     <symbol id="i-listen" viewBox="0 0 24 24"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2M4.5 14.5h2.5v5H6a1.5 1.5 0 0 1-1.5-1.5zM19.5 14.5H17v5h1a1.5 1.5 0 0 0 1.5-1.5z"/></symbol>
     <symbol id="i-note2" viewBox="0 0 24 24"><path d="M5 4.5h14v11l-4 4H5zM15 19.5v-4h4M8.5 9h7M8.5 12.5h4"/></symbol>
     <symbol id="i-define" viewBox="0 0 24 24"><path d="M6 19.5V5.5a1 1 0 0 1 1-1h11.5v13H7a1 1 0 0 0-1 1 1 1 0 0 0 1 1h11.5M10 8.5h5"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5zM14 3.5V8h4M9 12h6M9 15h6M9 18h4"/></symbol>
     <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 4.5v15M9 4.5v15M13.5 5.2l4.4 14.1M3.5 19.5h17"/></symbol>
     <symbol id="i-toc" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
     <symbol id="i-marker" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8H6.5v-5zM4 20.5h9"/></symbol>
@@ -70,6 +71,7 @@
   <section id="home" class="view">
     <header class="topbar">
       <div class="brand"><img src="icons/flint-mark.svg" alt="" width="28" height="28"><span>Flint</span></div>
+      <button class="ib" data-go="new" aria-label="New note"><svg class="ic"><use href="#i-plus"/></svg></button>
       <button class="sync" aria-label="Sync status"><span class="dot"></span><span class="sync-label"></span></button>
       <button class="ib" data-go="settings" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
     </header>
@@ -103,7 +105,7 @@
     <nav class="bottombar">
       <button data-go="files"><svg class="ic"><use href="#i-files"/></svg><span>Files</span></button>
       <button data-go="search"><svg class="ic"><use href="#i-search"/></svg><span>Search</span></button>
-      <button data-go="new"><svg class="ic"><use href="#i-plus"/></svg><span>New</span></button>
+      <button data-go="docs"><svg class="ic"><use href="#i-doc"/></svg><span>Docs</span></button>
       <button data-go="books"><svg class="ic"><use href="#i-book"/></svg><span>Books</span></button>
       <button data-go="settings"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span></button>
     </nav>
@@ -165,6 +167,21 @@
       <div class="seg nb-seg" id="queueTab"><button data-v="toread" aria-pressed="true">To read</button><button data-v="finished" aria-pressed="false">Finished</button></div>
       <ul id="queueList" class="rows pinrows"></ul>
       <p class="pin-note" id="queueHint"></p>
+    </main>
+  </section>
+
+  <!-- Docs -->
+  <section id="docsView" class="view" hidden>
+    <header class="topbar">
+      <button class="ib" data-back aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button>
+      <div class="tb-title">Docs</div>
+      <button class="ib" data-go="home" aria-label="Library"><svg class="ic"><use href="#i-library"/></svg></button>
+    </header>
+    <main class="home">
+      <button class="tile wide" data-go="docbrowse"><svg class="ic"><use href="#i-folder"/></svg><span>Browse OneDrive</span></button>
+      <h2 class="sec">Recent</h2>
+      <ul id="docRecent" class="rows"></ul>
+      <p class="pin-note">Flint opens Word documents for reading. Only your highlights and comments are saved back into a document; nothing else in it is changed.</p>
     </main>
   </section>
 
@@ -407,7 +424,9 @@
       
       <label class="field col"><span>Footnotes</span>
         <select id="setFn"><option value="popup">Tap the number to see it</option><option value="page">At the bottom of the page</option><option value="endnotes">As endnotes at the end</option></select></label>
-      <label class="field"><span>Full screen while reading</span><select id="setFull"><option value="on">On</option><option value="off">Off</option></select></label>
+      <label class="field col"><span>Full screen while reading</span><select id="setFull"><option value="kindle">Like Kindle (bars show with the menu)</option><option value="always">Stay full screen while reading</option><option value="off">Off</option></select></label>
+      <label class="field"><span>E-ink screen</span><select id="setEink"><option value="auto">Detect</option><option value="on">On</option><option value="off">Off</option></select></label>
+      <small>E-ink makes everything redraw without animation, for devices like Boox and Kobo.</small>
       <label class="field"><span>Open notes in</span>
         <select id="setOpen"><option value="read">Read</option><option value="edit">Edit</option></select></label>
     </section>
@@ -477,6 +496,7 @@
   <ul class="actions">
     <li><button data-act2="nbnote"><svg class="ic"><use href="#i-book"/></svg><span>Highlights in this note</span></button></li>
     <li><button data-act2="bookobs"><svg class="ic"><use href="#i-download"/></svg><span>Save highlights to Obsidian<small>Creates or updates a note in your vault</small></span></button></li>
+    <li><button data-act2="docweb"><svg class="ic"><use href="#i-doc"/></svg><span>Open in Word or OneDrive</span></button></li>
     <li><button data-act2="bookmark"><svg class="ic"><use href="#i-bookmark"/></svg><span id="moreBookmark">Bookmark this page</span></button></li>
     <li><button data-act2="queue"><svg class="ic"><use href="#i-queue"/></svg><span id="moreQueue">Add to Up next</span></button></li>
     <li class="sep"></li>
@@ -512,7 +532,7 @@
 
 <div id="sheetNote" class="sheet" hidden role="dialog" aria-label="Note on highlight">
   <div class="grab"></div>
-  <h2 class="sheet-title">Note</h2>
+  <h2 class="sheet-title" id="noteTitle">Note</h2>
   <blockquote class="note-quote" id="noteQuote"></blockquote>
   <textarea id="noteText" rows="4" placeholder="Your thoughts…"></textarea>
   <p class="aa-note">Notes are saved in Flint and sync to your other phones. Your Obsidian notes aren’t changed.</p>
@@ -548,6 +568,13 @@
   <blockquote class="note-quote" id="bookQuote"></blockquote>
   <ul class="folderpick books-pick" id="bookList"></ul>
   <button class="btn" id="bookNew">New notebook</button>
+</div>
+
+<div id="sheetDocs" class="sheet tall" hidden role="dialog" aria-label="Choose a Word document">
+  <div class="grab"></div>
+  <h2 class="sheet-title">Choose a Word document</h2>
+  <div class="crumbs" id="dbCrumbs"></div>
+  <ul class="folderpick" id="dbList"></ul>
 </div>
 
 <div id="sheetBookMenu" class="sheet" hidden role="dialog" aria-label="Book">

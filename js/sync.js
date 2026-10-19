@@ -244,10 +244,13 @@ async function run({ quick = false } = {}) {
   try {
     if (!quick || Date.now() - lastPull > 30_000) { await pullTree(); lastPull = Date.now(); }
     await pushAll();
-    await pullContents();
-    await prefetchImages();
-    // Flint's own data (notebook notes, pins, queue…) syncs after the notes.
-    try { await afterSync?.(); } catch (e) { console.warn('Flint data sync', e); }
+    // A quick sync (right after an edit or highlight) only uploads; the full check for
+    // changes elsewhere runs on open, every minute, and when coming back online.
+    if (!quick) {
+      await pullContents();
+      await prefetchImages();
+      try { await afterSync?.(); } catch (e) { console.warn('Flint data sync', e); }
+    }
     V.lastSync = Date.now();
     const meta = await db.get('kv', 'vault');
     if (meta) { meta.lastSync = V.lastSync; await db.put('kv', meta, 'vault'); }

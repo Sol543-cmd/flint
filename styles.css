@@ -661,3 +661,33 @@ button.home-sub { display: block; text-align: left; padding: 0; }
 
 /* Bar at the top, so Android's own bottom bar (on Pixel phones) can't cover it */
 .hl-pop { top: calc(var(--st) + 10px) !important; bottom: auto !important; }
+
+/* ---------- centered Read/Edit switch in the reader ---------- */
+.rd-top-row { display: grid; grid-template-columns: 1fr auto 1fr; }
+.rd-top-row > :first-child { justify-self: start; }
+.rd-top-row > .rd-top-right { justify-self: end; }
+
+/* ---------- e-ink: no animation, no blur, crisp edges ---------- */
+html.eink *, html.eink *::before, html.eink *::after { animation: none !important; transition: none !important; }
+html.eink .topbar, html.eink .bottombar { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--bg) !important; }
+html.eink .sheet, html.eink .drawer, html.eink .card, html.eink .hl-pop, html.eink .rd-top, html.eink .rd-bottom, html.eink .toast, html.eink .rd-back { box-shadow: none !important; }
+html.eink .sheet, html.eink .card, html.eink .drawer { border: 1px solid var(--ink); }
+html.eink .scrim { background: rgba(0, 0, 0, .15); }
+
+/* ---------- Word documents ---------- */
+.tile.wide { width: 100%; margin-bottom: 8px; }
+.rd.is-doc .modeswitch [data-mode="edit"], .rd.is-doc .pinbtn, .rd.is-doc .rd-tools [data-go="new"] { display: none; }
+.prose .doc-li { margin: .15em 0; text-indent: -1.1em; }
+.prose .doc-mk { display: inline-block; width: 1.1em; text-indent: 0; color: var(--muted); }
+.prose .doc-subtitle { color: var(--muted); font-size: 1.15em; }
+.prose .doc-center { text-align: center; }
+.prose h1.doc-title { font-size: 1.7em; }
+.prose .doc-cm { text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.prose .doc-cbadge { display: inline-block; width: 1.15em; height: 1em; margin: 0 .15em; vertical-align: -.1em; border-radius: 4px; background: var(--accent); position: relative; }
+.prose .doc-cbadge::after { content: ""; position: absolute; left: 22%; bottom: -.25em; border: .22em solid transparent; border-top-color: var(--accent); border-bottom: 0; }
+.doc-comment { margin-bottom: .8em; }
+.doc-comment b { font-family: var(--sans); font-size: 13px; }
+.doc-comment small { color: var(--muted); font-family: var(--sans); }
+.doc-comment p { margin: .3em 0 0; }
+.prose td > p, .prose th > p { margin: 0 0 .3em; }
+.prose td > p:last-child, .prose th > p:last-child { margin-bottom: 0; }

@@ -66,7 +66,7 @@ export function planHighlight(src, selected, occurrence, renderedCount) {
   if (!matches.length) return { error: 'Flint couldn’t match that selection to the note’s text. Try selecting within one paragraph.' };
   let pick = null;
   if (matches.length === renderedCount) pick = matches[occurrence];
-  else if (matches.length === 1 && renderedCount === 1) pick = matches[0];
+  else pick = matches[Math.min(occurrence, matches.length - 1)];
   if (!pick) return { error: 'That text appears more than once in this note. Select a few more words so Flint can find the right spot.' };
 
   let [s, e] = pick;

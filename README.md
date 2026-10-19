@@ -211,7 +211,6 @@ Check citations before submitting. Flint can only use the details the clipper sa
 
 * **Footnotes** (`[^1]` and inline `^[…]`): under **Settings → Reading → Footnotes**, choose to tap the number to see it, show notes at the bottom of the page, or show them as endnotes.
 * **Source line:** clipped notes show the author, website and published date under the title.
-* **Full screen while reading** hides Android's status and navigation bars (Settings → Reading).
 * **Instant highlighting:** lift your finger after selecting and the text is highlighted, with **Undo, Note, Notebook and Cite** beside it. Selecting a single word shows the menu instead, so **Define** is one tap away. Turn instant highlighting off under Settings → Reading. A selection across paragraphs becomes one highlight per paragraph, which is how Obsidian needs them.
 * **Books' worth read:** the reading stats count words you actually read and show them as books of about 80,000 words.
 
@@ -232,6 +231,27 @@ Tap a Bible reference (hover on a computer) to read the passage, switch translat
 **Save as a template** keeps your settings; templates sync between devices. **Flint default** is always there. Markdown footnotes become real **Word footnotes** (or endnotes, your choice); in print and PDF they appear as numbered notes at the end.
 
 **Exporting highlights:** in the Notebook, tap the download icon to export what you're looking at (all highlights, one note's, or one of your notebooks) as Word, PDF, Print or Markdown, with locations ("under 'Heading', 40% through"), citations in your chosen style, and your notes. Each highlight's **⋯** can **copy it with its location and citation**.
+
+## Word documents (Docs)
+
+Tap **Docs** at the bottom of the Library. **Recent** lists documents you've opened (it syncs between devices), and **Browse OneDrive** opens any folder in your OneDrive, including your vault, to pick a `.docx` file.
+
+Documents open in the same reading view as notes: pages or scroll, display settings, contents, bookmarks, Listen, Define, Scripture popups, and footnotes. Documents you've opened also read offline.
+
+Flint never edits a document's text. The only things it saves back are:
+* **Highlights:** select text and tap **Highlight**. They're saved as yellow highlights you'll see in Word and OneDrive. Tap a highlight to remove it.
+* **Comments:** select text and tap **Comment**, or tap a highlight and choose **Comment**. They're saved as real Word comments with your name. Existing comments show as small markers; tap one to read it.
+
+If the document was changed somewhere else since Flint opened it, nothing is overwritten. Flint loads the newer version and asks you to try again. Saving to a document needs an internet connection.
+
+## Full screen and e-ink
+
+* **Settings → Reading → Full screen while reading:**
+  * **Like Kindle** (default): the reader is full screen; tapping the middle shows Flint's menu and Android's bars together, and tapping again hides them. The Library, Files, Docs and Books screens are never full screen.
+  * **Stay full screen while reading:** the bars stay hidden even when the menu is open.
+  * **Off:** never full screen.
+* Each time a page goes full screen, Chrome itself may briefly show how to exit. That message comes from Chrome, and web apps can't turn it off. **Stay full screen** shows it least often.
+* **E-ink screen** (same section): Flint detects most e-ink devices. On a Boox, Kobo and similar, set it to **On** if it isn't detected. It turns off all animation and blur, so the screen redraws once, cleanly.
 
 ## Books (EPUB)
 

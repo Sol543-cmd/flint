@@ -114,6 +114,13 @@ md.core.ruler.after('inline', 'obs_tasks', (state) => {
   }
 });
 
+// Every block remembers which lines of the note it came from (used for fast, exact highlighting).
+md.core.ruler.push('obs_lines', (state) => {
+  for (const t of state.tokens) {
+    if (t.map && t.nesting === 1 && /^(paragraph|heading|list_item|tr)_open$/.test(t.type)) { t.attrSet('data-sl', String(t.map[0])); t.attrSet('data-el', String(t.map[1])); }
+  }
+});
+
 // ---------- rendering ----------
 const R = md.renderer.rules;
 R.obs_embed = (tokens, i) => {
@@ -193,8 +200,9 @@ export const FRONTMATTER = /^---\n[\s\S]*?\n---[ \t]*(?:\n|$)/;
 let docCounter = 0;
 export function renderMarkdown(text, opts = {}) {
   ctx = { ...ctx, ...opts };
-  let src = text.replace(FRONTMATTER, '');
-  src = outsideFences(src, (s) => s.replace(/%%[\s\S]*?%%/g, ''));
+  // Hidden parts are blanked out rather than removed, so line numbers still match the note.
+  let src = text.replace(FRONTMATTER, (m) => m.replace(/[^\n]/g, ''));
+  src = outsideFences(src, (s) => s.replace(/%%[\s\S]*?%%/g, (m) => m.replace(/[^\n]/g, '')));
   const html = md.render(src, { docId: `d${++docCounter}` });
   return DOMPurify.sanitize(html, { ADD_ATTR: ['target'], FORBID_TAGS: ['style', 'form', 'dialog'] });
 }

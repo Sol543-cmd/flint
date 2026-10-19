@@ -8,7 +8,7 @@
 import * as db from './db.js';
 import * as g from './graph.js';
 
-const COLS = ['notes', 'queue', 'finished', 'bookmarks', 'pinNotes', 'pinFolders', 'pos', 'books', 'bookItems', 'shared', 'templates', 'bookHl', 'shelves', 'shelfItems'];
+const COLS = ['notes', 'queue', 'finished', 'bookmarks', 'pinNotes', 'pinFolders', 'pos', 'books', 'bookItems', 'shared', 'templates', 'bookHl', 'shelves', 'shelfItems', 'docRecent'];
 const FORMAT = 1;
 const TOMBSTONE_DAYS = 180;
 

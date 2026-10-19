@@ -46,6 +46,7 @@ export async function buildDocx(root, opts) {
   }
   const footnotes = {};
   const fnIds = new Map();
+  let inFootnote = false;
 
   const textRun = (text, st) => new D.TextRun({
     text, bold: st.b || undefined, italics: st.i || undefined, strike: st.s || undefined,
@@ -81,7 +82,9 @@ export async function buildDocx(root, opts) {
           if (!fnIds.has(id)) {
             const n = fnIds.size + 1;
             fnIds.set(id, n);
+            inFootnote = true;
             footnotes[n] = { children: blocks(li, { noIndent: true }, []).filter((x) => x instanceof D.Paragraph) };
+            inFootnote = false;
             if (!footnotes[n].children.length) footnotes[n].children = [new D.Paragraph(li.textContent.trim())];
           }
           out.push(new D.FootnoteReferenceRun(fnIds.get(id)));
@@ -98,7 +101,8 @@ export async function buildDocx(root, opts) {
       if (tag === 'SUB') ns.sub = true;
       if (tag === 'A') {
         const href = c.getAttribute('href') || '';
-        if (/^https?:/i.test(href)) {
+        // Links inside footnotes stay plain text: a clickable link there breaks the file in Word.
+        if (/^https?:/i.test(href) && !inFootnote) {
           const kids = [];
           inline(c, { ...ns, link: true }, kids);
           if (kids.length) out.push(new D.ExternalHyperlink({ link: href, children: kids }));
@@ -261,5 +265,31 @@ export async function buildDocx(root, opts) {
       children,
     }],
   });
-  return D.Packer.toBlob(doc);
+  return tidyFootnotes(await D.Packer.toBlob(doc), bodySize);
+}
+
+// Make the footnotes Word-clean: the separator lines must not carry footnote numbers
+// (Word reports that as damage), and footnote text uses Word's compact Footnote Text style,
+// a little smaller than the body text.
+async function tidyFootnotes(blob, bodySize) {
+  const zip = await window.JSZip.loadAsync(blob);
+  for (const [file, tag] of [['word/footnotes.xml', 'footnote'], ['word/endnotes.xml', 'endnote']]) {
+    const f = zip.file(file);
+    if (!f) continue;
+    let xml = await f.async('string');
+    const Ref = tag === 'footnote' ? 'Footnote' : 'Endnote';
+    xml = xml.replace(new RegExp(`(<w:${tag} w:type="(?:separator|continuationSeparator)"[^>]*>)([\\s\\S]*?)(</w:${tag}>)`, 'g'),
+      (m, a, body, z) => a + body.replace(new RegExp(`<w:r><w:rPr><w:rStyle w:val="${Ref}Reference"/></w:rPr><w:${tag}Ref/></w:r>`, 'g'), '') + z);
+    xml = xml.replace(new RegExp(`(<w:${tag} w:id="[1-9]\\d*"[^>]*>)([\\s\\S]*?)(</w:${tag}>)`, 'g'), (m, a, body, z) => a
+      + body.replace(/<w:p>(?!<w:pPr>)/g, `<w:p><w:pPr><w:pStyle w:val="${Ref}Text"/></w:pPr>`).replace(/<w:p><w:pPr>(?!<w:pStyle)/g, `<w:p><w:pPr><w:pStyle w:val="${Ref}Text"/>`) + z);
+    zip.file(file, xml);
+  }
+  const st = zip.file('word/styles.xml');
+  if (st) {
+    const sz = Math.max(16, bodySize - 4);
+    let xml = await st.async('string');
+    xml = xml.replace(/(<w:style w:type="paragraph" w:styleId="(?:Footnote|Endnote)Text">[\s\S]*?<w:rPr>)<w:sz w:val="\d+"\/><w:szCs w:val="\d+"\/>/g, `$1<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>`);
+    zip.file('word/styles.xml', xml);
+  }
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' });
 }
