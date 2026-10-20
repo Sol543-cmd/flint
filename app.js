@@ -10,6 +10,7 @@ import { planHighlight, planRemove, normalize, occurrences, hiddenRanges, listHi
 import { findSource, composeCopy, STYLES, isFootnoteStyle, formatCitation } from './cite.js';
 import { buildDocx } from './docxexport.js';
 import * as bk from './books.js';
+import * as wr from './wordread.js';
 import * as fd from './flintdata.js';
 import { Listener, buildSentences, supported as ttsSupported, voices as ttsVoices } from './listen.js';
 
@@ -47,10 +48,11 @@ const DEFAULTS = {
   exportTo: 'save', citeStyle: 'mla', citeKind: 'bib', citeExcerpt: true,
   nightOn: 'off', nightTheme: 'dark', nightFrom: '20:00', nightTo: '07:00',
   listenRate: 1, listenVoice: '', dataSync: 'on', columns: 'auto',
-  fnMode: 'popup', fullscreen: 'on', autoHighlight: 'on', bible: 'esv', templateId: '', bookNotesFolder: null,
+  fnMode: 'popup', fullscreen: 'kindle', eink: 'auto', autoHighlight: 'on', bible: 'esv', templateId: '', bookNotesFolder: null,
   scripture: 'on', logosMode: 'app', bibleVersion: '',
 };
 const P = { ...DEFAULTS, ...store.get('prefs', {}) };
+if (P.fullscreen === 'on') P.fullscreen = 'kindle';
 P.print = { ...DEFAULTS.print, ...(P.print || {}) };
 const savePrefs = () => store.set('prefs', P);
 const langSet = () => new Set(P.hideLangs.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
@@ -67,7 +69,13 @@ function effectiveTheme() {
   return night ? P.nightTheme : P.theme;
 }
 
+// E-ink screens (Boox, Kobo, etc.) redraw slowly: no animations, no blur, instant pages.
+const EINK_GUESS = /boox|onyx|e-?ink|kobo|tolino|bigme|hisense|pocketbook|meebook|likebook/i.test(navigator.userAgent)
+  || matchMedia('(update: slow)').matches || matchMedia('(monochrome)').matches;
+const isEink = () => P.eink === 'on' || (P.eink === 'auto' && EINK_GUESS);
+
 function applyPrefs() {
+  document.documentElement.classList.toggle('eink', isEink());
   const r = document.documentElement;
   const f = FONTS[P.font] || FONTS.literata;
   r.style.setProperty('--read', f[1]);
@@ -133,6 +141,7 @@ const OV = {
   define: { show() { $('#sheetDefine').hidden = false; }, hide() { $('#sheetDefine').hidden = true; } },
   nbx: { show() { $('#sheetNbx').hidden = false; }, hide() { $('#sheetNbx').hidden = true; } },
   hlx: { show() { $('#sheetHlx').hidden = false; }, hide() { $('#sheetHlx').hidden = true; } },
+  docbrowse: { show() { $('#sheetDocs').hidden = false; }, hide() { $('#sheetDocs').hidden = true; } },
   bookmenu: { show() { $('#sheetBookMenu').hidden = false; }, hide() { $('#sheetBookMenu').hidden = true; } },
   books: { show() { $('#sheetBooks').hidden = false; }, hide() { $('#sheetBooks').hidden = true; if (S.view === 'notebook') renderNotebook(); } },
   print: { show() { $('#sheetPrint').hidden = false; }, hide() { $('#sheetPrint').hidden = true; } },
@@ -149,13 +158,14 @@ const OV = {
 };
 function updateScrim() {
   const top = S.ov[S.ov.length - 1];
-  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal', 'folders', 'folder', 'more', 'print', 'cite', 'note', 'stats', 'define', 'books', 'nbx', 'hlx', 'bookmenu'].includes(top);
+  $('#scrim').hidden = !['drawer', 'aa', 'toc', 'modal', 'folders', 'folder', 'more', 'print', 'cite', 'note', 'stats', 'define', 'books', 'nbx', 'hlx', 'bookmenu', 'docbrowse'].includes(top);
   $('#scrim').style.zIndex = top === 'drawer' ? 40 : 60;
   document.body.classList.toggle('lock', S.ov.length > 0);
 }
 function pushOv(name) {
   hidePop();
-  hideChrome();
+  hideChrome({ fullscreen: false });
+  if (['drawer', 'settings', 'docbrowse'].includes(name)) exitFullscreen();
   OV[name].show();
   S.ov.push(name);
   history.pushState({ ...(history.state || {}), ov: S.ov.length }, '');
@@ -180,6 +190,8 @@ window.addEventListener('popstate', (e) => {
   else if (st.v === 'queue') showQueue('none', st.y || 0);
   else if (st.v === 'books') showBooks('none', st.y || 0);
   else if (st.v === 'book') openBook(st.id, { history: 'none' });
+  else if (st.v === 'docs') showDocs('none', st.y || 0);
+  else if (st.v === 'doc') openDoc(st.id, { history: 'none' });
   else showHome('none', st.y || 0);
   // Going back from a note opened in a folder popup reopens that popup.
   if (leaving?.v === 'note' && typeof leaving.fromFolder === 'string' && !(st.v === 'note' && st.id === leaving.id)) openFolderSheet(leaving.fromFolder);
@@ -310,8 +322,10 @@ function hydrate(root, n, depth = 0) {
 
 // ---------- views ----------
 // Full screen while reading: hides Android's status and navigation bars, like Kindle.
+// Like Kindle: full screen while reading; tapping the middle shows Flint's menu and
+// Android's bars together. 'always' keeps the bars hidden while reading; 'off' never hides them.
 function enterFullscreen() {
-  if (P.fullscreen !== 'on' || !document.fullscreenEnabled || document.fullscreenElement) return;
+  if (P.fullscreen === 'off' || S.view !== 'reader' || !document.fullscreenEnabled || document.fullscreenElement) return;
   document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
 }
 function exitFullscreen() { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); }
@@ -324,6 +338,7 @@ function showView(v) {
   $('#notebookView').hidden = v !== 'notebook';
   $('#queueView').hidden = v !== 'queue';
   $('#booksView').hidden = v !== 'books';
+  $('#docsView').hidden = v !== 'docs';
   if (v !== 'reader') { stopListening(); exitFullscreen(); hideCard(); }
   else enterFullscreen();
   $('#reader').hidden = v !== 'reader';
@@ -580,7 +595,7 @@ function openNote(id, { history: h = 'push', mode, target = null, keepOv = false
   const n = V.notes.get(id);
   if (!n) { toast('That note isn’t on this phone yet. It will appear after the next sync.'); return false; }
   // Remember where a list was scrolled, so Back returns to the same spot.
-  if (h === 'push' && ['home', 'tags', 'pinned', 'notebook', 'queue', 'books'].includes(S.view) && !S.ov.length) history.replaceState({ ...(history.state || {}), y: scrollY }, '');
+  if (h === 'push' && ['home', 'tags', 'pinned', 'notebook', 'queue', 'books', 'docs'].includes(S.view) && !S.ov.length) history.replaceState({ ...(history.state || {}), y: scrollY }, '');
   closeEditor();
   saveReaderPos();
   if (!keepOv && S.ov.length) { dropAllOv(); if (h === 'push') h = 'replace'; }
@@ -623,7 +638,8 @@ const R = { id: null, page: 0, total: 1, step: 1, words: 0, chrome: false, swipe
 
 function loadReader(n, target = null) {
   R.book = null;
-  $('#reader').classList.remove('is-book');
+  R.doc = null;
+  $('#reader').classList.remove('is-book', 'is-doc');
   R.id = n.id;
   R.frac = null;
   R.anchor = null;
@@ -732,7 +748,7 @@ function saveReaderPos() { if (R.id && S.view === 'reader') savePosFor(R.id, boo
 function goPage(p, animate = true) {
   R.page = Math.max(0, Math.min(R.total - 1, p));
   const cols = $('#rdCols');
-  const anim = animate && P.anim === 'slide';
+  const anim = animate && P.anim === 'slide' && !isEink();
   if (!anim) cols.style.transition = 'none';
   cols.style.transform = `translateX(${-R.page * R.step}px)`;
   if (!anim) { void cols.offsetWidth; cols.style.transition = ''; }
@@ -809,6 +825,7 @@ function showChrome() {
   R.chrome = true;
   $('#reader').classList.add('show-chrome');
   $$('#layoutSwitch [data-layoutpick]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layoutpick === P.layout)));
+  if (P.fullscreen === 'kindle') exitFullscreen();
   updateProgress();
   hidePop();
 }
@@ -822,7 +839,11 @@ function setLayout(v) {
   setFrac(frac, false);
   $$('#layoutSwitch [data-layoutpick]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layoutpick === v)));
 }
-function hideChrome() { R.chrome = false; $('#reader').classList.remove('show-chrome'); }
+function hideChrome({ fullscreen = true } = {}) {
+  R.chrome = false;
+  $('#reader').classList.remove('show-chrome');
+  if (fullscreen && P.fullscreen !== 'off') enterFullscreen();
+}
 
 function updateClock() {
   const c = $('#rdClock');
@@ -940,7 +961,6 @@ async function openLogos(a) {
 }
 
 function onReaderTap(e) {
-  enterFullscreen();
   if (R.selAtDown || !getSelection().isCollapsed) return;
   if (Date.now() - R.swipedAt < 450) return;
   if (e.target.closest('[data-open], [data-res]')) return;
@@ -966,6 +986,15 @@ function onReaderTap(e) {
   }
   const mark = e.target.closest('mark');
   if (mark && !mark.closest('.embed') && $('#rdContent').contains(mark)) { showRemovePop(R.book ? (R.marks.find((x) => x.key === mark.dataset.bh)?.mark || mark) : mark); return; }
+  if (R.doc) {
+    const badge = e.target.closest('.doc-cbadge');
+    const cm = badge ? null : e.target.closest('.doc-cm');
+    if (badge || cm) {
+      const ids = badge ? [badge.dataset.cid] : cm.dataset.cids.split(' ');
+      showCard(badge || cm, ids.map((id) => wr.commentHtml(R.doc.d, id)).join('') || '<p class="card-note">This comment is empty.</p>');
+      return;
+    }
+  }
   const back = e.target.closest('[data-fnback]');
   if (back) { const ref = $(`#rdContent a.fnref[data-fn="${CSS.escape(back.dataset.fnback)}"]`); if (ref) showElement(ref); return; }
   if (!$('#card').hidden) { hideCard(); return; }
@@ -1045,6 +1074,7 @@ function bindReader() {
       hidePop();
       if (!h) return;
       if (act === 'undo') return undoHighlight();
+      if (h.doc) { try { await navigator.clipboard.writeText(h.excerpt); toast('Copied.'); } catch { toast('Copying isn’t allowed here.'); } return; }
       if (act === 'note') return openNoteEditor(h.made[0]);
       if (act === 'tobook') return openBookPicker(h.made[0]);
       if (act === 'cite') return openCite(h.excerpt);
@@ -1052,14 +1082,10 @@ function bindReader() {
       try { await navigator.clipboard.writeText(h.excerpt); toast('Copied.'); } catch { toast('Copying isn’t allowed here.'); }
       return;
     }
-    if (act === 'hl') {
-      // Hide the bar at once; do the work right after the screen updates.
-      $('#hlPop').hidden = true;
-      setTimeout(() => { if (addHighlight({ quiet: true })) showAfterPop(); }, 0);
-      return;
-    }
+    if (act === 'hl') { addHighlight({ quiet: true }); return; }
     if (act === 'note') return addHighlight({ thenNote: true });
     if (act === 'remove') return removeHighlight();
+    if (act === 'doccomment') { const m = R.popMark; hidePop(); if (m) commentOnMark(m); return; }
     if (act === 'tobook') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openBookPicker({ noteId: R.id, text: info.text, occ: info.occ }); return; }
     if (act === 'editnote') { const info = (R.marks || []).find((x) => x.mark === R.popMark); hidePop(); if (info) openNoteEditor({ noteId: R.id, text: info.text, occ: info.occ }); return; }
     const excerpt = normalize(getSelection().toString()).trim();
@@ -1102,12 +1128,16 @@ function autoHighlight() {
   if (/^[\p{L}][\p{L}'’-]{0,39}$/u.test(word)) { R.autoT = null; onSelection(); return; }
   if (addHighlight({ quiet: true })) requestAnimationFrame(showAfterPop);
 }
-function hidePop() { $('#hlPop').hidden = true; R.popMode = null; R.popMark = null; }
+function hidePop() { $('#hlPop').hidden = true; R.popMode = null; R.popMark = null; R.popKey = null; }
 function popButtons(list) {
+  const key = `${R.popMode}|${list.map((x) => x[0] + x[2]).join(',')}`;
+  if (key === R.popKey && !$('#hlPop').hidden) return;
+  R.popKey = key;
   $('#hlPop').innerHTML = list.map(([act, icon, label, kind]) => `<button data-pop="${act}" class="${kind || ''}"><svg class="ic"><use href="#i-${icon}"/></svg><span>${esc(label)}</span></button>`).join('');
 }
 // The bar sits at the bottom of the screen, clear of the selection handles and Android's own menu.
 function placePop() {
+  if (!$('#hlPop').hidden && R.popMode === 'add') return;
   $('#hlPop').hidden = false;
   clearTimeout(R.popHideT);
   if (R.popMode === 'after') R.popHideT = setTimeout(() => { if (R.popMode === 'after') hidePop(); }, 6000);
@@ -1126,17 +1156,18 @@ function onSelection() {
   R.popMode = 'add';
   popButtons([
     ['hl', 'marker', 'Highlight', 'primary'],
-    ['note', 'note2', 'Note'],
+    ['note', 'note2', R.doc ? 'Comment' : 'Note'],
     R.src ? ['cite', 'quote', 'Cite'] : ['copy', 'copy', 'Copy'],
     ...(single ? [['define', 'define', 'Define']] : []),
   ]);
-  placePop(range.getBoundingClientRect());
+  placePop();
 }
 function showRemovePop(mark) {
   R.popMode = 'remove';
   R.popMark = mark;
   const info = (R.marks || []).find((x) => x.mark === mark);
   const has = info && findAnn(R.id, info.text, info.occ);
+  if (R.doc) { popButtons([['doccomment', 'note2', 'Comment'], ['remove', 'x', 'Remove']]); placePop(); return; }
   popButtons([['editnote', 'note2', has ? 'Edit note' : 'Add note'], ...(R.book ? [] : [['tobook', 'book', 'Notebook']]), ['remove', 'x', 'Remove']]);
   placePop(mark.getBoundingClientRect());
 }
@@ -1225,7 +1256,13 @@ function sameRender(a, b, delta) {
   return x.textContent.replace(/\s/g, '') === y.textContent.replace(/\s/g, '') && y.querySelectorAll('mark').length === x.querySelectorAll('mark').length + delta;
 }
 
+// Run work right after the screen has shown the change (e-ink screens get a little longer).
+const later = (fn) => requestAnimationFrame(() => setTimeout(fn, isEink() ? 150 : 30));
+
+// Highlight the selection: it appears at once and the bar goes away; saving it into the
+// note happens a moment later in the background, while you keep reading.
 function addHighlight({ thenNote = false, quiet = false } = {}) {
+  if (R.doc) { addDocHighlight({ thenNote }); return null; }
   if (R.book) return addBookHighlight({ thenNote, quiet });
   const n = cur();
   const sel = getSelection();
@@ -1235,39 +1272,48 @@ function addHighlight({ thenNote = false, quiet = false } = {}) {
   const content = $('#rdContent');
   const pieces = selectedPieces(range, content).filter((p) => /[\p{L}\p{N}]/u.test(p.text));
   if (!pieces.length) { hidePop(); toast('Select text in this note to highlight it.'); return null; }
-  let src = n.local;
-  const edits = [];
-  for (const p of pieces) {
-    const slice = lineSlice(src, p.block);
-    const norm = normalize(p.text).trim();
-    const blockNorm = normalize(p.blockText);
-    const at = normalize(p.before + p.text.match(/^\s*/)[0]).length;
-    const occ = occurrences(blockNorm, norm);
-    const plan = planHighlight(slice.text, p.text, Math.max(0, occ.filter((x) => x < at).length), occ.length);
-    if (plan.error) { hidePop(); toast(plan.error, 3500); return null; }
-    if (!sameRender(slice.text, plan.text, 1)) { hidePop(); toast('Flint couldn’t highlight that spot without changing other text.', 3500); return null; }
-    edits.push({ base: slice.base, oldLen: slice.text.length, text: plan.text, start: slice.base + plan.start, seg: p.segs });
-  }
-  for (const ed of [...edits].sort((a, b) => b.base - a.base)) src = src.slice(0, ed.base) + ed.text + src.slice(ed.base + ed.oldLen);
-  const prev = n.local;
+  const excerpt = normalize(pieces.map((p) => p.text).join(' ')).trim();
+  // 1. Show it now.
+  const marks = pieces.flatMap((p) => wrapSegs(p.segs));
   sel.removeAllRanges();
   hidePop();
-  const marks = edits.flatMap((ed) => wrapSegs(ed.seg));
-  sy.editLocal(n.id, src);
-  // Starts shift by the "==" pairs added before them.
-  const hs = listHighlights(src);
-  const starts = edits.map((ed) => ed.start + 4 * edits.filter((o) => o.base < ed.base).length).sort((a, b) => a - b);
-  const made = starts.map((st) => hs.find((h) => h.start === st)).filter(Boolean).map((h) => ({ noteId: n.id, text: h.text, occ: h.occ }));
-  decorateMarks();
-  R.lastHl = { noteId: n.id, prev, next: src, made, marks, excerpt: normalize(pieces.map((p) => p.text).join(' ')).trim() };
-  if (thenNote && made[0]) { openNoteEditor(made[0]); return R.lastHl; }
-  if (!quiet) toast('Highlighted.');
-  return R.lastHl;
+  // 2. Save it into the note in the background.
+  later(() => {
+    const fail = (msg) => { unwrapMarks(marks); decorateMarks(); toast(msg, 3500); };
+    const now = V.notes.get(n.id);
+    if (!now) return;
+    let src = now.local;
+    const edits = [];
+    for (const p of pieces) {
+      const slice = lineSlice(src, p.block);
+      const norm = normalize(p.text).trim();
+      const blockNorm = normalize(p.blockText);
+      const at = normalize(p.before + p.text.match(/^\s*/)[0]).length;
+      const occ = occurrences(blockNorm, norm);
+      const plan = planHighlight(slice.text, p.text, Math.max(0, occ.filter((x) => x < at).length), occ.length);
+      if (plan.error) return fail(plan.error);
+      if (!sameRender(slice.text, plan.text, 1)) return fail('Flint couldn’t highlight that spot without changing other text.');
+      edits.push({ base: slice.base, oldLen: slice.text.length, text: plan.text, start: slice.base + plan.start });
+    }
+    for (const ed of [...edits].sort((a, b) => b.base - a.base)) src = src.slice(0, ed.base) + ed.text + src.slice(ed.base + ed.oldLen);
+    const prev = now.local;
+    sy.editLocal(n.id, src);
+    const hs = listHighlights(src);
+    const starts = edits.map((ed) => ed.start + 4 * edits.filter((o) => o.base < ed.base).length).sort((a, b) => a - b);
+    const made = starts.map((st) => hs.find((h) => h.start === st)).filter(Boolean).map((h) => ({ noteId: n.id, text: h.text, occ: h.occ }));
+    decorateMarks();
+    R.lastHl = { noteId: n.id, prev, next: src, made, marks, excerpt };
+    if (thenNote && made[0]) openNoteEditor(made[0]);
+    else if (!quiet) toast('Highlighted.');
+    else if (!isEink()) showAfterPop();
+  });
+  return { pending: true };
 }
 
 function undoHighlight() {
   const h = R.lastHl;
-  if (h?.bookKey) { hidePop(); fd.remove('bookHl', h.bookKey); R.lastHl = null; reloadChapter(); toast('Highlight undone.'); return; }
+  if (h?.doc) { hidePop(); undoDoc(h); return; }
+  if (h?.bookKey) { hidePop(); fd.remove('bookHl', h.bookKey); unwrapMarks($$(`#rdContent mark[data-bh="${CSS.escape(h.bookKey)}"]`)); R.marks = (R.marks || []).filter((x) => x.key !== h.bookKey); R.lastHl = null; return; }
   const n = cur();
   hidePop();
   if (!h || !n || n.id !== sy.resolveId(h.noteId)) return;
@@ -1297,6 +1343,7 @@ function showAfterPop() {
 }
 
 async function removeHighlight() {
+  if (R.doc) { const m = R.popMark; hidePop(); if (m) removeDocHighlight(m); return; }
   if (R.book) {
     const key = R.popMark?.dataset.bh;
     hidePop();
@@ -1305,8 +1352,8 @@ async function removeHighlight() {
     const ann = info && findAnn(R.id, info.text, info.occ);
     if (ann) { const ok = await ask({ label: 'Remove this highlight?', input: false, ok: 'Remove', hint: 'Your note on it will be deleted too.' }); if (!ok) return; fd.remove('notes', ann.key); }
     fd.remove('bookHl', key);
-    reloadChapter();
-    toast('Highlight removed.');
+    unwrapMarks($$(`#rdContent mark[data-bh="${CSS.escape(key)}"]`));
+    R.marks = (R.marks || []).filter((x) => x.key !== key);
     return;
   }
   const n = cur();
@@ -1614,8 +1661,17 @@ function sourceLine(src) {
 }
 
 function openMore() {
+  const isDoc = !!R.doc && S.view === 'reader';
+  if (isDoc) {
+    $$('#sheetMore .actions > li').forEach((li) => { const act = li.querySelector('[data-act2]')?.dataset.act2; li.hidden = !['bookmark', 'docweb'].includes(act); });
+    $('#exportToRow').hidden = true;
+    $('#moreTitle').textContent = R.doc.name.replace(/\.docx$/i, '');
+    $('#moreBookmark').textContent = currentBookmark() ? 'Remove bookmark' : 'Bookmark this page';
+    pushOv('more');
+    return;
+  }
   const isBook = !!R.book && S.view === 'reader';
-  $$('#sheetMore .actions > li').forEach((li) => { const act = li.querySelector('[data-act2]')?.dataset.act2; li.hidden = isBook ? !['bookmark', 'bookobs'].includes(act) : act === 'bookobs'; });
+  $$('#sheetMore .actions > li').forEach((li) => { const act = li.querySelector('[data-act2]')?.dataset.act2; li.hidden = isBook ? !['bookmark', 'bookobs'].includes(act) : ['bookobs', 'docweb'].includes(act); });
   $('#exportToRow').hidden = isBook || !navigator.canShare;
   if (isBook) {
     $('#moreTitle').textContent = R.book.meta.title;
@@ -1985,6 +2041,300 @@ async function copyCitation() {
     ? 'Copied. When you paste, turn the ¹ into a real footnote in your document.' : 'Copied with citation.', 4000);
 }
 
+// ---------- Word documents (read-only, plus highlights and comments) ----------
+let ME_NAME = null;
+async function myName() {
+  if (ME_NAME != null) return ME_NAME;
+  try { const j = await g.me(); ME_NAME = j.owner?.user?.displayName || ''; } catch { ME_NAME = ''; }
+  return ME_NAME;
+}
+function showDocs(h = 'push', y = 0) {
+  leaveNote();
+  S.curState = { v: 'docs' };
+  if (h === 'push') history.pushState({ v: 'docs' }, '');
+  else if (h === 'replace') history.replaceState({ v: 'docs' }, '');
+  showView('docs');
+  renderDocs();
+  window.scrollTo(0, y);
+}
+function renderDocs() {
+  if (S.view !== 'docs') return;
+  const rec = fd.all('docRecent').sort((a, b) => b.at - a.at).slice(0, 40);
+  $('#docRecent').innerHTML = rec.length
+    ? rec.map((r) => `<li><button data-opendoc="${esc(r.key)}" data-docname="${esc(r.name)}"><span class="r-name r-folder"><svg class="ic"><use href="#i-doc"/></svg>${esc(r.name.replace(/\.docx$/i, ''))}</span><span class="r-meta">${esc(r.folder || 'OneDrive')}, ${esc(ago(r.at))}</span></button></li>`).join('')
+    : '<li class="empty">Word documents you open will show up here.</li>';
+}
+const DB = { stack: [{ id: null, name: 'OneDrive' }] };
+function openDocBrowser() { pushOv('docbrowse'); renderDocBrowser(); }
+async function renderDocBrowser() {
+  const here = DB.stack[DB.stack.length - 1];
+  $('#dbCrumbs').innerHTML = DB.stack.map((c, i) => `<button data-dbcrumb="${i}">${esc(c.name)}</button>`).join('<span>/</span>');
+  const list = $('#dbList');
+  list.innerHTML = '<li class="empty">Loading…</li>';
+  try {
+    const items = await g.listFolders(here.id);
+    if (DB.stack[DB.stack.length - 1] !== here) return;
+    const folders = items.filter((i) => i.folder && !i.name.startsWith('.')).sort((a, b) => byName(a.name, b.name));
+    const docs = items.filter((i) => i.file && /\.docx$/i.test(i.name)).sort((a, b) => byName(a.name, b.name));
+    list.innerHTML = [
+      ...folders.map((f) => `<li><button data-dbfolder="${esc(f.id)}" data-name="${esc(f.name)}"><svg class="ic"><use href="#i-folder"/></svg><span class="nm">${esc(f.name)}</span><svg class="ic note"><use href="#i-right"/></svg></button></li>`),
+      ...docs.map((f) => `<li><button data-dbdoc="${esc(f.id)}" data-name="${esc(f.name)}"><svg class="ic"><use href="#i-doc"/></svg><span class="nm">${esc(f.name.replace(/\.docx$/i, ''))}</span></button></li>`),
+    ].join('') || '<li class="empty">No folders or Word documents here.</li>';
+  } catch (e) {
+    list.innerHTML = `<li class="empty">${esc(e.name === 'Offline' ? 'Browsing OneDrive needs a connection. Recent documents still open offline.' : e.message)}</li>`;
+  }
+}
+async function openDoc(id, { history: h = 'push', name = '', folder = null, backLabel = null, quiet = false } = {}) {
+  let rec = await db.get('blobs', `doc:${id}`).catch(() => null);
+  let item = null;
+  if (navigator.onLine) {
+    try { const r = await g.req(`/me/drive/items/${id}?$select=id,name,eTag,webUrl,parentReference`); if (r.ok) item = await r.json(); } catch { /* offline */ }
+  }
+  if (item && (!rec || rec.eTag !== item.eTag)) {
+    if (!quiet) toast('Opening…', 1500);
+    try {
+      const { bytes } = await g.download(id);
+      rec = { buf: bytes, eTag: item.eTag, name: item.name, webUrl: item.webUrl };
+      await db.put('blobs', rec, `doc:${id}`);
+    } catch (e) { if (!rec) { toast(e.message || 'Couldn’t download that document.'); return; } }
+  }
+  if (!rec) { toast('Open this document once while online, and Flint will keep it for offline reading.', 4000); return; }
+  let d;
+  try { d = await wr.openDocx(rec.buf); } catch (e) { toast(e.message, 4000); return; }
+  closeEditor();
+  saveReaderPos();
+  if (S.ov.length) { dropAllOv(); if (h === 'push') h = 'replace'; }
+  if (h === 'push' && ['home', 'docs'].includes(S.view)) history.replaceState({ ...(history.state || {}), y: scrollY }, '');
+  const key = `doc:${id}`;
+  S.current = key;
+  const docFolder = folder ?? (item?.parentReference?.path || '').replace(/^\/drive\/root:?\/?/, '');
+  fd.put('docRecent', id, { name: item?.name || rec.name || name, folder: docFolder || fd.get('docRecent', id)?.folder || '', at: Date.now() });
+  const state = { v: 'doc', id, backLabel };
+  S.curState = state;
+  if (h === 'push') history.pushState(state, '');
+  else if (h === 'replace') history.replaceState(state, '');
+  R.book = null;
+  R.doc = { id, name: item?.name || rec.name || name || 'Document', d, eTag: rec.eTag, webUrl: item?.webUrl || rec.webUrl };
+  showView('reader');
+  $('#reader').classList.remove('is-book');
+  $('#reader').classList.add('is-doc');
+  loadDocReader({ frac: posMap()[key] || 0 });
+}
+function loadDocReader({ frac = 0 } = {}) {
+  const D = R.doc;
+  R.id = S.current;
+  R.frac = null; R.anchor = null; R.src = null; R.finishedMarked = false;
+  hideCard(); hidePop(); stopListening();
+  const name = D.name.replace(/\.docx$/i, '');
+  const content = $('#rdContent');
+  content.innerHTML = wr.renderDocx(D.d);
+  $('#rdTitle').textContent = name;
+  $('#rdTitle').hidden = !!content.querySelector(':scope > h1.doc-title, :scope > h1:first-child');
+  $('#rdStatusTitle').textContent = name;
+  $('#rdChromeTitle').textContent = name;
+  $('#rdBanner').innerHTML = '';
+  $('#rdLinks').innerHTML = '';
+  $('#rdLinks').hidden = true;
+  $('#rdCols').querySelectorAll('.rd-source').forEach((el) => el.remove());
+  for (const img of $$('img[data-docimg]', content)) wr.mediaUrl(D.d, img.dataset.docimg).then((u) => { if (u) { img.addEventListener('load', relayoutSoon, { once: true }); img.src = u; } });
+  $$('a[href]', content).forEach((a) => { if (/^https?:/i.test(a.getAttribute('href'))) { a.target = '_blank'; a.rel = 'noopener noreferrer'; } });
+  applyFootnotes(content);
+  if (P.scripture === 'on') linkScripture(content, { mode: P.logosMode, version: P.bibleVersion });
+  R.marks = $$('mark[data-r]', content).map((m) => ({ mark: m, k: Number(m.dataset.r), text: '', occ: 0 }));
+  R.words = (content.textContent.match(/\S+/g) || []).length;
+  const ck = `${S.current}`;
+  R.countedPages = R.countedFor === ck ? R.countedPages : new Set();
+  R.countedFor = ck;
+  R.pageSince = Date.now();
+  R.lastAct = Date.now();
+  const back = history.state?.backGone ? '' : history.state?.backLabel || '';
+  $('#rdBack').hidden = !back;
+  if (back) $('#rdBack').textContent = `‹ Back to ${back}`;
+  R.backTurns = 0;
+  hideChrome();
+  layout();
+  setFrac(frac, false);
+}
+const reloadDoc = () => loadDocReader({ frac: readerFrac() });
+// The on-screen element for a whole Word run (an inner <mark> from a fresh highlight
+// carries the same run number, so step out to the outermost one).
+function runEl(node) {
+  let el = (node.nodeType === 1 ? node : node.parentElement)?.closest('[data-r]');
+  while (el?.parentElement?.closest('[data-r]')) el = el.parentElement.closest('[data-r]');
+  return el;
+}
+const textBefore = (root, target) => { let n = 0; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (w.nextNode()) { const t = w.currentNode; if (t === target || (target.nodeType === 1 && target.contains(t))) break; if (!t.parentElement.closest('sup.footnote-ref')) n += t.data.length; } return n; };
+// The selection as Word runs: [{ k, s, e }] (run number, character range within it).
+function docSegs() {
+  const sel = getSelection();
+  if (sel.isCollapsed || !sel.rangeCount) return [];
+  const range = sel.getRangeAt(0);
+  const content = $('#rdContent');
+  const root = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const map = new Map();
+  while (w.nextNode()) {
+    const t = w.currentNode;
+    if (!range.intersectsNode(t) || t.parentElement.closest('sup.footnote-ref')) continue;
+    const span = runEl(t);
+    if (!span || !content.contains(span) || span.closest('section.footnotes')) continue;
+    const s = t === range.startContainer ? range.startOffset : 0;
+    const e = t === range.endContainer ? range.endOffset : t.data.length;
+    if (e <= s) continue;
+    const base = textBefore(span, t);
+    const k = Number(span.dataset.r);
+    const cur = map.get(k);
+    if (cur) cur.e = base + e; else map.set(k, { k, s: base + s, e: base + e });
+  }
+  return [...map.values()].filter((x) => x.e > x.s).sort((a, b) => a.k - b.k);
+}
+const spanLen = (el) => { let n = 0; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); while (w.nextNode()) if (!w.currentNode.parentElement.closest('sup.footnote-ref')) n += w.currentNode.data.length; return n; };
+// A highlight can be several runs in a row; treat neighbouring marks as one.
+// One highlight can be several marks in a row; marks belong together only when nothing
+// but spaces lies between them.
+function markGroup(mark) {
+  const marks = $$('#rdContent mark[data-r]');
+  const i = marks.indexOf(mark);
+  if (i < 0) return [mark];
+  const joined = (x, y) => { const r = document.createRange(); r.setStartAfter(x); r.setEndBefore(y); return !r.toString().trim(); };
+  let a = i, b = i;
+  while (a > 0 && joined(marks[a - 1], marks[a])) a--;
+  while (b < marks.length - 1 && joined(marks[b], marks[b + 1])) b++;
+  return marks.slice(a, b + 1);
+}
+let docQueue = Promise.resolve();
+// Upload the document with only the highlight/comment change. If it changed elsewhere since
+// Flint opened it, nothing is overwritten: Flint reloads the newer version instead.
+function saveDoc(snap) {
+  const D = R.doc;
+  const run = async () => {
+    try {
+      const bytes = await wr.packDocx(D.d);
+      const r = await g.req(`/me/drive/items/${D.id}/content`, { method: 'PUT', headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'If-Match': D.eTag }, body: bytes });
+      if (r.status === 412) {
+        wr.restore(D.d, snap);
+        await db.del('blobs', `doc:${D.id}`);
+        await openDoc(D.id, { history: 'none', quiet: true });
+        toast('This document was changed somewhere else, so Flint loaded the newer version. Please try that again.', 5000);
+        return false;
+      }
+      if (r.status === 423) { wr.restore(D.d, snap); reloadDoc(); toast('The document is open for editing somewhere else, so it’s locked right now. Try again in a moment.', 5000); return false; }
+      if (!r.ok) throw await g.err(r);
+      const it = await r.json();
+      D.eTag = it.eTag;
+      await db.put('blobs', { buf: bytes, eTag: it.eTag, name: D.name, webUrl: D.webUrl }, `doc:${D.id}`);
+      return true;
+    } catch (e) {
+      wr.restore(D.d, snap);
+      if (R.doc === D) reloadDoc();
+      toast(e.name === 'Offline' ? 'No connection, so that wasn’t saved to the document.' : `Couldn’t save to OneDrive: ${e.message}`, 5000);
+      return false;
+    }
+  };
+  docQueue = docQueue.then(run);
+  return docQueue;
+}
+// Mark text on screen inside a Word document (each text piece in its own <mark>).
+function markDocSegsOnScreen() {
+  const sel = getSelection();
+  const range = sel.getRangeAt(0);
+  const root = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const todo = [];
+  while (w.nextNode()) {
+    const t = w.currentNode;
+    if (!range.intersectsNode(t) || t.parentElement.closest('sup.footnote-ref, mark')) continue;
+    const span = t.parentElement.closest('[data-r]');
+    if (!span || span.closest('section.footnotes')) continue;
+    const s0 = t === range.startContainer ? range.startOffset : 0;
+    const e0 = t === range.endContainer ? range.endOffset : t.data.length;
+    if (e0 > s0 && t.data.slice(s0, e0).trim()) todo.push({ t, s0, e0, k: span.dataset.r });
+  }
+  return todo.map(({ t, s0, e0, k }) => {
+    let x = t;
+    if (s0 > 0) x = x.splitText(s0);
+    if (e0 - s0 < x.data.length) x.splitText(e0 - s0);
+    const m = document.createElement('mark');
+    m.dataset.r = k;
+    x.replaceWith(m);
+    m.append(x);
+    return m;
+  });
+}
+function addDocHighlight({ thenNote = false } = {}) {
+  const D = R.doc;
+  const segs = docSegs();
+  const excerpt = normalize(getSelection().toString()).trim();
+  if (!segs.length) { getSelection().removeAllRanges(); hidePop(); toast('Select text in the document to highlight it.'); return; }
+  if (!navigator.onLine) { getSelection().removeAllRanges(); hidePop(); toast('Saving to a Word document needs an internet connection.'); return; }
+  if (thenNote) { getSelection().removeAllRanges(); hidePop(); R.pendingDocSegs = segs; openDocComment(excerpt); return; }
+  // Show it now…
+  const marks = markDocSegsOnScreen();
+  getSelection().removeAllRanges();
+  hidePop();
+  // …and write it into the document in the background.
+  later(() => {
+    if (R.doc !== D) return;
+    const snap = wr.snapshot(D.d);
+    wr.highlight(D.d, segs, true);
+    R.lastHl = { doc: true, snap, excerpt, made: [], marks };
+    if (!isEink()) { R.popMode = 'after'; popButtons([['undo', 'x', 'Undo'], ['copy', 'copy', 'Copy']]); placePop(); }
+    saveDoc(snap).then((ok) => { if (!ok) unwrapMarks(marks); });
+  });
+}
+function undoDoc(h) {
+  const D = R.doc;
+  if (!D) return;
+  const now = wr.snapshot(D.d);
+  wr.restore(D.d, h.snap);
+  R.lastHl = null;
+  reloadDoc();
+  saveDoc(now);
+}
+function removeDocHighlight(mark) {
+  const D = R.doc;
+  if (!navigator.onLine) { toast('Saving to a Word document needs an internet connection.'); return; }
+  const group = markGroup(mark);
+  const ks = [...new Set(group.map((m) => Number(m.dataset.r)))];
+  // Show it now…
+  for (const m of group) {
+    if (m.parentElement?.closest('[data-r]')) unwrapMarks([m]);
+    else { const sp = document.createElement('span'); sp.dataset.r = m.dataset.r; while (m.firstChild) sp.append(m.firstChild); m.replaceWith(sp); }
+  }
+  // …and save it in the background.
+  later(() => {
+    if (R.doc !== D) return;
+    const snap = wr.snapshot(D.d);
+    wr.unhighlightRuns(D.d, ks);
+    saveDoc(snap);
+  });
+}
+function openDocComment(excerpt) {
+  NE.doc = true;
+  $('#noteTitle').textContent = 'Comment';
+  $('#noteQuote').textContent = excerpt;
+  $('#noteText').value = '';
+  $('#noteDelete').hidden = true;
+  pushOv('note');
+  setTimeout(() => $('#noteText').focus(), 120);
+}
+function commentOnMark(mark) {
+  const group = markGroup(mark);
+  R.pendingDocSegs = group.map((m) => { const run = runEl(m); const s0 = run === m ? 0 : textBefore(run, m); return { k: Number(m.dataset.r), s: s0, e: s0 + spanLen(m) }; });
+  openDocComment(normalize(group.map((m) => m.textContent).join('')).trim());
+}
+async function saveDocComment(text) {
+  const D = R.doc;
+  const segs = R.pendingDocSegs;
+  R.pendingDocSegs = null;
+  if (!D || !segs?.length) return;
+  if (!navigator.onLine) { toast('Saving to a Word document needs an internet connection.'); return; }
+  const snap = wr.snapshot(D.d);
+  wr.addComment(D.d, segs, text, await myName());
+  reloadDoc();
+  if (await saveDoc(snap)) toast('Comment added. You’ll see it in Word too.');
+}
+
 // ---------- books (EPUB) ----------
 let SHELF = [];
 const BOOKCACHE = new Map();
@@ -2055,7 +2405,9 @@ async function openBook(id, { history: h = 'push', at = null, backLabel = null }
   if (h === 'push') history.pushState(state, '');
   else if (h === 'replace') history.replaceState(state, '');
   R.book = { id, meta, epub: ep, idx: 0 };
+  R.doc = null;
   showView('reader');
+  $('#reader').classList.remove('is-doc');
   $('#reader').classList.add('is-book');
   let pos = at;
   if (!pos) {
@@ -2149,7 +2501,7 @@ function markBookHighlights() {
 function addBookHighlight({ thenNote = false, quiet = false } = {}) {
   const sel = getSelection();
   if (sel.isCollapsed) return null;
-  const shown = sel.toString().replace(/[ \t]*\n[\s]*/g, '\n').trim();
+  const selText = sel.toString().replace(/[ \t]*\n[\s]*/g, '\n').trim();
   const range = sel.getRangeAt(0);
   const content = $('#rdContent');
   const A = document.createTextNode('\uE000'), B = document.createTextNode('\uE001');
@@ -2157,9 +2509,10 @@ function addBookHighlight({ thenNote = false, quiet = false } = {}) {
   const r1 = range.cloneRange(); r1.collapse(true); r1.insertNode(A);
   const full = textNodes(content).text;
   A.remove(); B.remove(); content.normalize();
+  const shown = full.slice(full.indexOf('\uE000') + 1, full.indexOf('\uE001')).trim();
   sel.removeAllRanges();
   hidePop();
-  let i = full.indexOf('\uE000'), j = full.indexOf('\uE001');
+  const i = full.indexOf('\uE000'), j = full.indexOf('\uE001');
   if (i < 0 || j <= i) return null;
   let raw = full.slice(i + 1, j);
   const lead = raw.length - raw.trimStart().length;
@@ -2169,12 +2522,19 @@ function addBookHighlight({ thenNote = false, quiet = false } = {}) {
   const at = i + lead;
   const occ = occurrences(plain, raw).filter((x) => x < at).length;
   const key = crypto.randomUUID();
-  fd.put('bookHl', key, { book: R.book.id, idx: R.book.idx, text: raw, show: shown || raw, occ, at, len: plain.length, created: Date.now() });
-  reloadChapter();
+  // Show it now…
+  const marks = wrapRange(content, at, at + raw.length, key);
+  if (marks[0]) R.marks.push({ mark: marks[0], key, text: normalize(raw).trim(), occ });
   const made = [{ noteId: R.id, text: normalize(raw).trim(), occ }];
-  R.lastHl = { bookKey: key, made, excerpt: normalize(raw).trim() };
-  if (thenNote) { openNoteEditor(made[0]); return R.lastHl; }
-  if (!quiet) toast('Highlighted.');
+  R.lastHl = { bookKey: key, made, excerpt: normalize(raw).trim(), marks };
+  // …and save it in the background.
+  const rec = { book: R.book.id, idx: R.book.idx, text: raw, show: selText || shown || raw, occ, at, len: plain.length, created: Date.now() };
+  later(() => {
+    fd.put('bookHl', key, rec, { quiet: true });
+    if (thenNote) openNoteEditor(made[0]);
+    else if (!quiet) toast('Highlighted.');
+    else if (!isEink()) showAfterPop();
+  });
   return R.lastHl;
 }
 async function followEpubLink(a) {
@@ -2237,10 +2597,11 @@ async function syncBooksNow() {
   try { await bk.syncBooks(onBooksChange); } catch (e) { console.warn('Books sync', e); }
   await refreshShelf();
 }
-function onBooksChange({ renamed } = {}) {
+function onBooksChange({ renamed, merged } = {}) {
   if (!renamed) return;
   const [from, to] = renamed.map((x) => `book:${x}`);
-  const p = fd.get('pos', from); if (p) { fd.put('pos', to, { f: p.f }, { quiet: true }); fd.remove('pos', from); }
+  const p = fd.get('pos', from);
+  if (p) { if (!merged || !fd.get('pos', to)) { const { u, ...rest } = p; fd.put('pos', to, rest, { quiet: true }); } fd.remove('pos', from); }
   if (store.get('last', '') === from) store.set('last', to);
   S.recent = S.recent.map((x) => (x === from ? to : x)); store.set('recent', S.recent);
   for (const r of fd.all('bookHl')) if (r.book === renamed[0]) { const { key, u, ...rest } = r; fd.put('bookHl', key, { ...rest, book: renamed[1] }, { quiet: true }); }
@@ -2437,11 +2798,14 @@ function decorateMarks() {
     const seen = new Map();
     info = marks.map((m) => { const t = normalize(m.textContent).trim(); const k = t.toLowerCase(); const occ = seen.get(k) || 0; seen.set(k, occ + 1); return { mark: m, text: t, occ }; });
   }
-  for (const x of info) x.mark.classList.toggle('has-note', !!findAnn(n.id, x.text, x.occ));
+  const anns = new Set(fd.all('notes').filter((r) => r.noteId === n.id).map((r) => `${r.hl.toLowerCase()}|${r.occ || 0}`));
+  for (const x of info) x.mark.classList.toggle('has-note', anns.has(`${x.text.toLowerCase()}|${x.occ}`));
   R.marks = info;
 }
 const NE = { ctx: null, key: null };
 function openNoteEditor(ctx) {
+  NE.doc = false;
+  $('#noteTitle').textContent = 'Note';
   const n = V.notes.get(sy.resolveId(ctx.noteId));
   NE.ctx = { ...ctx, notePath: n?.path || '' };
   const ann = findAnn(ctx.noteId, ctx.text, ctx.occ);
@@ -2454,6 +2818,7 @@ function openNoteEditor(ctx) {
 }
 async function saveNoteEditor() {
   const t = $('#noteText').value.trim();
+  if (NE.doc) { await popOv(); if (t) saveDocComment(t); return; }
   const c = NE.ctx;
   if (!c) return;
   if (!t) { if (NE.key) fd.remove('notes', NE.key); }
@@ -3097,6 +3462,7 @@ function fillSettings() {
   $('#setDataSync').value = P.dataSync;
   $('#setFn').value = P.fnMode;
   $('#setFull').value = P.fullscreen;
+  $('#setEink').value = P.eink;
   $('#setBibleText').innerHTML = TRANSLATIONS.map(([c, short, long]) => `<option value="${c}">${long}</option>`).join('');
   $('#setBibleText').value = P.bible;
   $('#setEsv').value = esvKey();
@@ -3133,6 +3499,7 @@ function bindSettings() {
   };
   $('#setFn').onchange = (e) => { P.fnMode = e.target.value; reread(); };
   $('#setFull').onchange = (e) => { P.fullscreen = e.target.value; savePrefs(); };
+  $('#setEink').onchange = (e) => { P.eink = e.target.value; savePrefs(); applyPrefs(); };
   $('#setBibleText').onchange = (e) => { P.bible = e.target.value; savePrefs(); if (P.bible !== 'esv') loadTranslation(P.bible).catch(() => {}); };
   $('#setEsv').onchange = (e) => { const v = e.target.value.replace(/^\s*(Authorization:\s*)?Token\s+/i, '').trim(); e.target.value = v; if (v) fd.put('shared', 'esvKey', { v }); else fd.remove('shared', 'esvKey'); toast(v ? 'ESV key saved. It syncs to your other devices.' : 'ESV key removed.'); };
   $('#setVoice').onchange = (e) => { P.listenVoice = e.target.value; savePrefs(); L.setVoice(pickVoice()); };
@@ -3390,6 +3757,8 @@ function bind() {
       else if (act === 'tags') showTags();
       else if (act === 'pinned') showPinned();
       else if (act === 'books') showBooks();
+      else if (act === 'docs') showDocs();
+      else if (act === 'docbrowse') openDocBrowser();
       else if (act === 'more') openMore();
       else if (act === 'notebook') showNotebook();
       else if (act === 'queue') showQueue();
@@ -3436,6 +3805,13 @@ function bind() {
   $('#sheetMore').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act2]');
     if (!b) return;
+    if (R.doc && S.view === 'reader') {
+      const act = b.dataset.act2;
+      await popOv();
+      if (act === 'bookmark') toggleBookmark();
+      else if (act === 'docweb' && R.doc.webUrl) window.open(R.doc.webUrl, '_blank', 'noopener');
+      return;
+    }
     if (R.book && S.view === 'reader') {
       const act = b.dataset.act2;
       await popOv();
@@ -3543,6 +3919,15 @@ function bind() {
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideCard(); });
   $('#nbFilter').addEventListener('input', () => renderNotebook());
+  $('#sheetDocs').addEventListener('click', (e) => {
+    const cr = e.target.closest('[data-dbcrumb]');
+    if (cr) { DB.stack = DB.stack.slice(0, Number(cr.dataset.dbcrumb) + 1); renderDocBrowser(); return; }
+    const f = e.target.closest('[data-dbfolder]');
+    if (f) { DB.stack.push({ id: f.dataset.dbfolder, name: f.dataset.name }); renderDocBrowser(); return; }
+    const d2 = e.target.closest('[data-dbdoc]');
+    if (d2) { const folder = DB.stack.slice(1).map((x) => x.name).join('/'); popOv().then(() => openDoc(d2.dataset.dbdoc, { name: d2.dataset.name, folder, backLabel: 'Docs' })); }
+  });
+  $('#docsView').addEventListener('click', (e) => { const o = e.target.closest('[data-opendoc]'); if (o) openDoc(o.dataset.opendoc, { name: o.dataset.docname, backLabel: 'Docs' }); });
   $('#bookFile').addEventListener('change', (e) => { const f = [...(e.target.files || [])]; e.target.value = ''; addBookFiles(f); });
   $('#booksView').addEventListener('click', (e) => {
     const sh = e.target.closest('[data-shelf]');
